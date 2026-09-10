@@ -1,3 +1,7 @@
 function scudp --description "top UDP ports"
-    sudo nmap -sU --top-ports 20 -oN "udp-$argv[1].nmap" $argv[1]
+    if test (count $argv) -eq 0
+        echo "usage: scudp TARGET"; return 1
+    end
+    set -l target $argv[1]
+    __run sudo nmap -sU --top-ports 20 -oN "udp-$target.nmap" $target
 end

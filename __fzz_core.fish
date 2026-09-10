@@ -10,7 +10,7 @@ function __fzz_core --description "shared feroxbuster runner"
     set -l xargs
     test -n "$ext"; and set xargs -x $ext
 
-    feroxbuster -u $url -w $wl $xargs \
+    __run feroxbuster -u $url -w $wl $xargs \
         -t 50 -d 3 -C 404,400 --auto-tune --insecure \
         -o "ferox-$scheme-$tag.txt"
 end

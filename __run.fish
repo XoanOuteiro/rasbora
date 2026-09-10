@@ -1,5 +1,7 @@
 function __run --description "echo a command in a banner, then execute it"
-    set -l pretty (string escape -n -- $argv)
+    # no -n: simple args stay bare, anything with spaces/redirects gets single-quoted,
+    # so the banner is a copy-pasteable command line instead of backslash soup
+    set -l pretty (string escape -- $argv)
     set -l start_iso (date '+%Y-%m-%dT%H:%M:%S%:z')   # 2026-08-20T18:31:07+02:00
     set -l start_utc (date -u '+%Y-%m-%dT%H:%M:%SZ')
     set -l start_epoch (date +%s)
