@@ -42,9 +42,9 @@ Check your clock or these won't count for forensics stuff.
 
 `__run` prints the banner directly above the tool's own output, so when you copy the terminal you copy the command with it.
 
-Wrapped: `look`, `smell`, `scudp`, the four fuzz functions, `smbr`, `smbrd`, `snmpr`, `wpsr`, `ketch`, `rketch`, `wketch`, and the servers in `pwncat` and `winpwn`.
+Wrapped: `look`, `smell`, `scudp`, the five fuzz functions, `smbr`, `smbrd`, `snmpr`, `wpsr`, `ketch`, `rketch`, `wketch`, and the servers in `pwncat` and `winpwn`.
 
-Not wrapped: `sinst`, `extr`, `mkcd`, `tmpd`, `fns`, `decrypt`, `ls` and friends, `peep`. None of them touch a target. Same for the downloads in `pwncat` and `winpwn`, that is my box not theirs.
+Not wrapped: `sinst`, `extr`, `mkcd`, `tmpd`, `fns`, `decrypt`, `chash`, `ls` and friends, `peep`. None of them touch a target. Same for the downloads in `pwncat` and `winpwn`, that is my box not theirs.
 
 ---
 
@@ -62,7 +62,7 @@ One dead host does not take the rest of the list with it. You get a warning, it 
 
 ## Content discovery
 
-Feroxbuster underneath, because it recurses on its own. All four share `__fzz_core`.
+Feroxbuster underneath, because it recurses on its own. All five share `__fzz_core`.
 
 | | |
 |---|---|
@@ -70,8 +70,11 @@ Feroxbuster underneath, because it recurses on its own. All four share `__fzz_co
 | `ufzz HOST[:PORT]` | Same but http. |
 | `fzzx HOST EXTS` | https, explicit extensions, raft-medium-files. `fzzx 10.10.10.5 asp,aspx,config` when you know the stack. |
 | `ufzzx HOST EXTS` | Same but http. |
+| `sufzz HOST[:PORT]` | `ufzz` held down to 5 requests a second. For a box that falls over, rate limits you, or has something in front of it that starts handing out 429s once you go fast. |
 
-Output goes to `ferox-SCHEME-HOST.txt` so scanning the same IP on 80, 443 and 8080 does not overwrite itself.
+Output goes to `ferox-SCHEME-HOST.txt` so scanning the same IP on 80, 443 and 8080 does not overwrite itself. `sufzz` writes `-slow` on the end for the same reason, so the slow pass does not land on top of the fast one you already ran.
+
+Two things had to change for `sufzz` to mean what it says. Feroxbuster's `--rate-limit` is per directory scan, and feroxbuster recurses, so on its own the number is per branch and the real rate is some multiple of it. `-L 1` keeps one scan running at a time and makes 5 actually 5. And `--auto-tune` comes off, because it walks the rate back up by itself when it decides things look healthy, and it does that without reference to the ceiling you asked for. Threads drop to 5 as well, since fifty of them queueing for five slots a second achieves nothing.
 
 ## Service enumeration
 
@@ -82,11 +85,43 @@ Output goes to `ferox-SCHEME-HOST.txt` so scanning the same IP on 80, 443 and 80
 | `snmpr IP` | onesixtyone against the default community string list, then snmpwalk. |
 | `wpsr URL` | wpscan with aggressive plugin detection and user enumeration. There is always a WordPress. |
 
+## Hashes
+
+| | |
+|---|---|
+| `chash HASH` | Identifies it, says whether it is worth attacking, and prints the command. Both tools every time, hashcat first and john second, with full paths so the line pastes and runs. |
+| `chash FILE` | Same for a file. Groups by type, counts each one, and lists unrecognised lines with their line numbers. |
+| `chash FILE WORDLIST` | Wordlist instead of `/usr/share/wordlists/rockyou.txt`. |
+
+`hashid` and `haiti` stop at the name and a mode number. The point of this one is the verdict and the ready-to-run line: whether to crack it at all, how hopeless it is if you do, and what to run instead when cracking is the wrong move.
+
+Every line answers two separate questions, because they are separate questions. On the left, what the thing is good for **as it stands**: `USE AS-IS`, `RELAY OR CRACK`, `MUST CRACK`, `CRACK ONLY`, `DECODE`, `NOTHING HERE`. On the right, what cracking it would **cost**: trivial, fast, moderate, slow, usually futile.
+
+```
+  NT hash                        2 hashes  USE AS-IS · fast
+  Kerberoast (RC4)               2 hashes  MUST CRACK · moderate
+  DCC2 cached domain credential  1 hash    CRACK ONLY · usually futile
+  Cisco type 7                   1 hash    DECODE
+  empty LM hash                  1 hash    NOTHING HERE
+```
+
+Keeping them apart is the point. An NT hash is `USE AS-IS` and also cheap to crack, and conflating those two facts is how people end up running hashcat against a credential they could already have logged in with. So it hands you `nxc`, `evil-winrm` and `impacket-psexec` with the hash in them, and only mentions cracking as a footnote for when you need cleartext somewhere that refuses a hash, like RDP or a web login.
+
+`CRACK ONLY` exists for the things that came out of a Windows dump and therefore look passable but are not: DCC1 and DCC2. `RELAY OR CRACK` is Net-NTLMv1 and v2, which cannot be passed either, being a challenge response rather than the NT hash. That is the single most common misunderstanding in this whole area, so it says so in words and offers `ntlmrelayx` next to the cracking line.
+
+`DECODE` actually decodes. Cisco type 7 is reversible obfuscation, so it prints the plaintext directly and the one-liner underneath it. Nothing else is decrypted, and nothing is ever cracked for you: `chash` only ever tells you and prints the command.
+
+Hand it a `.zip`, an `id_rsa`, a `.kdbx` or a `.pcap` and it prints the `zip2john` / `ssh2john` / `keepass2john` / `hcxpcapngtool` line instead, because those are files that contain a hash rather than hashes. It looks for the helper on `PATH` and then in `/usr/share/john`, and tells you the package if it is missing rather than failing quietly. A capture is the one case where the two tools genuinely do not share a format, so it names `hcxpcapngtool` for hashcat and `wpapcap2john` for john rather than pretending one hash file feeds both.
+
+pwdump lines get read properly: it reports the NT field, and mentions the LM field only when it is not `aad3b435b51404eeaad3b435b51404ee`. That value means no LM hash is stored, and cracking it is a classic wasted hour. john reads a pwdump file as it stands and hashcat cannot, so for those the hashcat line points at a `cut -d: -f4` of the hash column and the john line points at the file. Both lines run as printed.
+
+Bare hex is ambiguous and gets reported as ambiguous. 32 hex is NT or MD5, 16 hex is MySQL323 or half an LM, `hash:username` is DCC1 or PostgreSQL. It gives you the likely one for this kind of work and states the alternative rather than guessing silently. When nothing matches it says so, prints the first 60 characters, and hands you `hashcat --example-hashes` and `john --list=formats` so a miss still leaves you somewhere useful.
+
 ## OSCP plumbing
 
 | | |
 |---|---|
-| `target IP` | Sets `RHOST`, `RHOSTS`, `IP` and grabs `LHOST` off tun0 automatically. Putting your ethernet IP in a payload instead of your VPN IP is a twenty minute debugging session, this stops that. |
+| `target IP` | Sets `RHOST`, `RHOSTS`, `TARGET` and `IP` to the same thing, and grabs `LHOST` off tun0 automatically. Four names because every cheatsheet picks a different one and I would rather set all of them once than find out which a pasted command wanted. No port: that changes per service, and a stale `RPORT` sitting around is worse than never having set one. Putting your ethernet IP in a payload instead of your VPN IP is a twenty minute debugging session, this stops that, and it says so out loud when tun0 is down instead of leaving `LHOST` quietly empty. |
 | `ketch [PORT]` | netcat listener, defaults to 443. Not 4444, because boxes that filter egress usually still let 443 out. |
 | `rketch [PORT]` | Same but wrapped in rlwrap. Kills the `^[[A^[[B` arrow key garbage and gives you history in a raw shell. Use this when you cannot upgrade to a TTY. |
 | `wketch [PORT]` | Passes your terminal dimensions through so long commands do not wrap wrong. Runs `stty sane` on exit so your terminal is not left in raw mode. |
@@ -134,13 +169,21 @@ CLSID lists for 2008 R2, 2012, 2016, 7 and 10 go in `~/tools/win/clsid/` with `t
 
 ## Internals
 
-`__run` wraps a command with the logging banner. `__fzz_core` is the shared feroxbuster runner behind the four fuzz functions. `__look_table` draws the `look -h` table out of a `deep.nmap`. `__winpwn_get`, `__winpwn_ghurl` and `__winpwn_member` do the downloading and unpacking for `winpwn`. Do not call them directly.
+`__chash_id` holds `chash`'s identification table and returns one record for one string: name, hashcat mode, john format, what it is usable for as-is, and how hard cracking would be. One table walked in order, first match wins: prefixed formats first so they can never be shadowed, then structured ones, then bare hex last because it is ambiguous by nature. Add a format by adding a row, not by adding a branch.
+
+`__run` wraps a command with the logging banner. `__fzz_core` is the shared feroxbuster runner behind the five fuzz functions. Pass it a fifth argument and it becomes the rate limited one. `__look_table` draws the `look -h` table out of a `deep.nmap`. `__winpwn_get`, `__winpwn_ghurl` and `__winpwn_member` do the downloading and unpacking for `winpwn`. Do not call them directly.
 
 `__run` executes an argument list, so no pipes, redirects or `&&` inside it. Anything needing those has to go through `sh -c`. Use `bash -c "set -o pipefail; ..."` when there is a pipe, or you read back the status of whatever ran last instead of the tool you cared about.
 
 `__run` single quotes the command instead of backslash escaping it, so an `sh -c` line comes out as `sh -c 'enum4linux-ng -A 10.10.10.5 2>/dev/null | head -60'` and pastes into a report as is. Put a single quote inside one of those strings and fish drops back to backslashes and you get soup. That is why it is `rpcclient -U ""` and not `rpcclient -U ''`, sh reads them the same.
 
 ## Gotchas
+
+hashcat dies at startup on a VM without GPU passthrough, usually an OpenCL or device error. `-D 1` for CPU only, or `--force`, or just use the john line, which needs no backend at all. `chash` says this itself on any slow verdict.
+
+hashcat prints nothing and exits happily when the hash is already in `~/.local/share/hashcat/hashcat.potfile`. It looks exactly like a failure and is not. `--show` to see what it already has, `--potfile-disable` to redo it.
+
+Always `--format=` on the john line. John's autodetect offers several candidates for anything bare hex and then picks one, and you find out an hour later it cracked the wrong interpretation. `chash` never prints a john line without it.
 
 Editing a function file does not reload it in your current shell. Fish autoloads once and caches. Use `funced NAME` to edit and reload in one go, or `functions -e NAME` to drop the cached copy if you edited the file directly.
 
