@@ -161,6 +161,7 @@ function spray --description "spray one or many credentials across every NetExec
 
     # ---- plan: print every command once, before running anything ---------
     set -l C (set_color -o cyan); set -l N (set_color normal); set -l D (set_color brblack)
+    set -l G (set_color green); set -l R (set_color -o red)
     echo
     echo "$C── spray plan ─────────────────────────────────────────$N"
     printf "  target     %s   %s%s%s\n" $target $D $tnote $N
@@ -224,11 +225,53 @@ function spray --description "spray one or many credentials across every NetExec
         end
     end
 
-    # ---- hits: pull the wins out of the transcript -----------------------
-    # clean the saved transcript in place: the live view kept its colours,
-    # the file should be paste-ready for the report. box-drawing stays.
+    # ---- clean the saved transcript, pull the wins -----------------------
+    # clean in place: the live view kept its colours, the file should be
+    # paste-ready for the report. box-drawing stays.
     sed -ri 's/\x1b\[[0-9;]*[A-Za-z]//g; s/[\x0e\x0f\r]//g' $log
     grep -E '\[\+\]|Pwn3d' $log >$hits
+
+    # ---- report: decode the module labels, once the run is done ----------
+    # every log line is prefixed with the nxc MODULE name (SMB, MSSQL, ...),
+    # which is easy to lose in the scroll. This maps each module sprayed to the
+    # typical port and service that usually sit there, and tallies the wins.
+    # the port is the module's default that nxc used, not a scan result, hence *.
+    set -l report_protos $pass_protos
+    test $npass -eq 0; and set report_protos $hash_protos
+    echo
+    echo "$C── report · $target ──────────────────────────────$N"
+    printf "  %-7s %-6s %-26s %s\n" module "port*" "service (typical)" result
+    for p in $report_protos
+        set -l P (string upper $p)
+        set -l port ""; set -l svc ""
+        switch $p
+            case smb;   set port 445;  set svc "SMB / CIFS"
+            case ldap;  set port 389;  set svc "LDAP / Active Directory"
+            case ssh;   set port 22;   set svc "SSH"
+            case ftp;   set port 21;   set svc "FTP"
+            case mssql; set port 1433; set svc "Microsoft SQL Server"
+            case winrm; set port 5985; set svc "WinRM / WS-Management"
+            case wmi;   set port 135;  set svc "RPC / WMI (DCOM)"
+            case rdp;   set port 3389; set svc "RDP"
+            case vnc;   set port 5900; set svc "VNC"
+            case nfs;   set port 2049; set svc "NFS"
+            case '*';   set port "?";  set svc $p
+        end
+        set -l n (grep -ciE "^"$P"[[:space:]]" $hits)
+        set -l res "$D—$N"
+        if test $n -gt 0
+            set -l plural (test $n -gt 1; and echo s)
+            if grep -qiE "^"$P"[[:space:]].*Pwn3d" $hits
+                set res "$G$n hit$plural$N  $R"Pwn3d!"$N"
+            else
+                set res "$G$n hit$plural$N"
+            end
+        end
+        printf "  %-7s %-6s %-26s %s\n" $P $port $svc $res
+    end
+    echo "  $D* typical default port for the nxc module; nxc used it unless the target said otherwise$N"
+
+    # ---- hits detail -----------------------------------------------------
     echo
     if test -s $hits
         echo "$C── hits ("(wc -l <$hits | string trim)") ─ from $hits ──$N"
@@ -236,6 +279,43 @@ function spray --description "spray one or many credentials across every NetExec
     else
         echo "$D── no [+]/Pwn3d lines. Full transcript in $log ──$N"
     end
+    # ---- next steps: how to use each winning credential ------------------
+    # parse every hit line -> module, host, the exact winning user:secret, and
+    # print the single best next move for that service with the cred filled in.
+    # the full per-service playbook is one creduse away.
+    if test -s $hits
+        echo
+        echo "$C── next steps ─────────────────────────────────────────$N"
+        set -l seen
+        for line in (cat $hits)
+            set -l m (string match -r '^(\S+)\s+(\S+)' -- $line)
+            test (count $m) -lt 3; and continue
+            set -l mod (string lower $m[2])
+            set -l hip $m[3]
+            set -l cred (string replace -r '^.*\[\+\] *' '' -- $line)
+            set cred (string replace -r ' *\(Pwn3d!\).*$' '' -- $cred)
+            set cred (string trim -- $cred)
+            set -l ps (string split -m1 ':' -- $cred)
+            test (count $ps) -lt 2; and continue
+            set -l prin $ps[1]
+            set -l sec $ps[2]
+            set -l norm (string replace -a '\\' / -- $prin)
+            set -l dom DOMAIN; set -l user $norm
+            if string match -q '*/*' -- $norm
+                set dom (string split -r -m1 / -- $norm)[1]
+                set user (string split -r -m1 / -- $norm)[2]
+            end
+            set -l key "$mod|$prin|$sec"
+            contains -- $key $seen; and continue
+            set -a seen $key
+            set -l sflag -p
+            string match -rq '^[0-9a-fA-F]{32}(:[0-9a-fA-F]{32})?$' -- $sec; and set sflag -H
+            set -l head (__cred_guide $mod $hip $dom $user $sec $sflag)[1]
+            printf "  %s→ %-6s%s %s\n" $G (string upper $mod) $N $head
+        end
+        echo "  $D full playbook for any service:  creduse PROTO IP USER SECRET$N"
+    end
+
     set -q _flag_verbose; or echo "  $D(screen showed successes only; full run in $log, or re-run with -v)$N"
     echo
 end

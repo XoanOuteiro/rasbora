@@ -98,7 +98,7 @@ Check your clock or these won't count for forensics stuff.
 
 Wrapped: `look`, `smell`, `scudp`, the five fuzz functions, `smbr`, `smbrd`, `snmpr`, `wpsr`, `nxclur`, `spray`, `ketch`, `rketch`, `wketch`, and the servers in `pwncat` and `winpwn`.
 
-Not wrapped: `sinst`, `extr`, `mkcd`, `tmpd`, `fns`, `decrypt`, `chash`, `ls` and friends, `peep`. None of them touch a target. Same for the downloads in `pwncat` and `winpwn`, that is my box not theirs.
+Not wrapped: `sinst`, `extr`, `mkcd`, `tmpd`, `fns`, `decrypt`, `chash`, `creduse`, `ls` and friends, `peep`. None of them touch a target. Same for the downloads in `pwncat` and `winpwn`, that is my box not theirs.
 
 ---
 
@@ -159,9 +159,19 @@ It prints the whole plan before it touches anything: how many users, how many pa
 
 By default the screen shows the wins only, the `[+]` and `Pwn3d!` lines. `-v` shows every attempt. Either way the full transcript, every failure and banner included, goes to `spray-TARGET.log` and the wins are lifted out into `spray-TARGET.hits`. The file always has everything, the screen is just quieter.
 
+When the run finishes it prints a report: every module it sprayed decoded into its typical port and service, so the `SMB` / `MSSQL` / `WINRM` labels in the log stop being a guessing game, with a per-row hit tally and a `Pwn3d!` flag. Then, for each winning credential, the single best next move with the cred already filled in, `evil-winrm` for WinRM, `impacket-wmiexec` for WMI, `impacket-mssqlclient` for MSSQL, and `creduse` for the rest.
+
 The levers for not locking anything out: `-j` throttles, per host, so `-j 3` or `-j 2-5` between attempts. `-b` pairs a user list and a password list line by line instead of trying every combination, for when you have known pairs. `-l` switches to local auth and the Windows-only protocol set. It warns when you have more than one secret per account and no throttle, because that is how you lock something under exam pressure.
 
 Two defaults baked in: `--continue-on-success`, so it finds every valid key instead of stopping at the first, and `--no-progress`, so the saved transcript stays clean.
+
+## Using credentials
+
+| | |
+|---|---|
+| `creduse PROTO [IP USER SECRET]` | The playbook for a credential that works on a service. Prints the next-step commands for one protocol, or `all`, filled in when you pass IP/USER/SECRET and as templates when you do not. Password or NTLM hash, auto-detected. |
+
+`spray` tells you a key opens a door; this tells you what to do once you are through it. For each service it knows the move that matters, `evil-winrm` or `impacket-wmiexec` for a shell, `impacket-mssqlclient` then `xp_cmdshell` for MSSQL, `--shares` and `impacket-psexec` for SMB, `bloodhound-python` and the roasts for LDAP, `xfreerdp` for RDP, and fills your credential into it, switching to the pass-the-hash forms (`-H`, `-hashes`, `/pth`) when the secret is a hash. A password gets single-quoted, a `domain\\user` gets split into domain and user for the impacket lines. It is a cheat sheet that happens to know your target: it only ever prints, it never connects. Sourced from HackTricks and Hacking Articles, and `spray` calls into the same playbook for its end-of-run next steps.
 
 ## Hashes
 
@@ -250,6 +260,8 @@ CLSID lists for 2008 R2, 2012, 2016, 7 and 10 go in `~/tools/win/clsid/` with `t
 `__chash_id` holds `chash`'s identification table and returns one record for one string: name, hashcat mode, john format, what it is usable for as-is, and how hard cracking would be. One table walked in order, first match wins: prefixed formats first so they can never be shadowed, then structured ones, then bare hex last because it is ambiguous by nature. Add a format by adding a row, not by adding a branch.
 
 `__nxclur_names` pulls the usernames out of an nxc ldap enum for `nxclur`: strip ANSI, drop the `[*]`/`[+]`/`[-]` status lines and the `-Username-` header, cut the `LDAP ip port host` prefix off the front, take the first field. One parser behind all three calls, because the name leads the row in `--users` and `--active-users` and is the whole row in `--admin-count`. Do not call it directly.
+
+`__cred_guide` is the per-service playbook behind `creduse` and `spray`'s next steps: given a protocol and a credential it prints the command templates, most useful first, in password or pass-the-hash form. One table of services, the way `__chash_id` is one table of hashes. Do not call it directly.
 
 `__run` wraps a command with the logging banner. `__fzz_core` is the shared feroxbuster runner behind the five fuzz functions. Pass it a fifth argument and it becomes the rate limited one. `__look_table` draws the `look -h` table out of a `deep.nmap`. `__winpwn_get`, `__winpwn_ghurl` and `__winpwn_member` do the downloading and unpacking for `winpwn`. Do not call them directly.
 
