@@ -96,7 +96,7 @@ Check your clock or these won't count for forensics stuff.
 
 `__run` prints the banner directly above the tool's own output, so when you copy the terminal you copy the command with it.
 
-Wrapped: `look`, `smell`, `scudp`, the five fuzz functions, `smbr`, `smbrd`, `snmpr`, `wpsr`, `ketch`, `rketch`, `wketch`, and the servers in `pwncat` and `winpwn`.
+Wrapped: `look`, `smell`, `scudp`, the five fuzz functions, `smbr`, `smbrd`, `snmpr`, `wpsr`, `nxclur`, `spray`, `ketch`, `rketch`, `wketch`, and the servers in `pwncat` and `winpwn`.
 
 Not wrapped: `sinst`, `extr`, `mkcd`, `tmpd`, `fns`, `decrypt`, `chash`, `ls` and friends, `peep`. None of them touch a target. Same for the downloads in `pwncat` and `winpwn`, that is my box not theirs.
 
@@ -138,6 +138,30 @@ Two things had to change for `sufzz` to mean what it says. Feroxbuster's `--rate
 | `smbrd IP` | The full version. Shares, then rpcclient null session (`querydominfo`, `enumdomusers`, `enumdomgroups`, `enumprinters`), then enum4linux-ng. If null session works you have usernames, which is usually half the box. |
 | `snmpr IP` | onesixtyone against the default community string list, then snmpwalk. |
 | `wpsr URL` | wpscan with aggressive plugin detection and user enumeration. There is always a WordPress. |
+| `nxclur IP USER SECRET` | Credentialed nxc LDAP user recon, three views merged into one roster. Runs `--users`, `--active-users` and `--admin-count` and groups everyone: active admins first, then active, then disabled, each flagged `[admin]` / `[non-default]` with its description inline. SECRET is a password or an NTLM hash, auto-detected. Drops an active-only username list for the next step. |
+
+`nxclur`'s three nxc flags answer three different questions, and only together do they say where to spend time: `--users` is everyone, `--active-users` is who can still log in, `--admin-count` is who is privileged. The diff is the point. `--users` minus `--active-users` is the disabled set, noise in every roast and spray, so it sinks to the bottom dimmed. Anything in `--admin-count` that is not a built-in gets `[non-default]` and a call-out by name, because that is the `tom_admin` someone created and usually the way up.
+
+SECRET is read as a password unless it looks like an NTLM hash, 32 hex or `LM:NT`, in which case it goes in as `-H` and the same command does pass-the-hash against LDAP. It says which mode it chose and the banner shows the flag, so a wrong guess shows up on the first line rather than as a silent auth failure. The active names land in `ldap-names-IP.txt`, one per line, which is what `impacket-GetNPUsers` and `spray` want next, and it prints both of those lines ready to paste with the domain scraped out of nxc's own banner.
+
+## Credential spraying
+
+| | |
+|---|---|
+| `spray TARGET -u USER -p PASS` | One credential against every NetExec protocol at once: smb, ldap, ssh, ftp, mssql, winrm, wmi, rdp, vnc, fast and safe first. Access is per service, so a cred that bounces off SMB can still open WinRM or MSSQL. This was the instinct I kept missing, trying one key in one lock. |
+| `spray TARGET -U users.txt -P pass.txt` | Lists instead of single values. `-u`/`-U` (user, user list) and `-p`/`-P` (password, password list) both stack and repeat. |
+| `spray TARGET -u USER -H HASH` | Pass-the-hash. `-H`/`-F` take a hash or a hash file, and only hit the protocols that speak NTLM: smb, ldap, mssql, winrm, wmi, rdp. |
+| `spray TARGET ... -L` | Credless SMB sweep first, then spray only the hosts that answered. For a /24 you do not want to drag rdp and vnc across 254 dead addresses. Drops hosts with no SMB, so an ssh-only box vanishes. |
+
+Give it any mix of users, passwords and hashes. Passwords run as one wave across all nine protocols, hashes as a second wave across the six that take NTLM, so every combination is one command.
+
+It prints the whole plan before it touches anything: how many users, how many passwords, how many hashes, and a rough attempt count with the arithmetic shown, users by secrets by hosts by protocols, then every exact nxc line it is about to run. `-n` stops there and runs nothing, for when you want to see the blast radius first.
+
+By default the screen shows the wins only, the `[+]` and `Pwn3d!` lines. `-v` shows every attempt. Either way the full transcript, every failure and banner included, goes to `spray-TARGET.log` and the wins are lifted out into `spray-TARGET.hits`. The file always has everything, the screen is just quieter.
+
+The levers for not locking anything out: `-j` throttles, per host, so `-j 3` or `-j 2-5` between attempts. `-b` pairs a user list and a password list line by line instead of trying every combination, for when you have known pairs. `-l` switches to local auth and the Windows-only protocol set. It warns when you have more than one secret per account and no throttle, because that is how you lock something under exam pressure.
+
+Two defaults baked in: `--continue-on-success`, so it finds every valid key instead of stopping at the first, and `--no-progress`, so the saved transcript stays clean.
 
 ## Hashes
 
@@ -225,6 +249,8 @@ CLSID lists for 2008 R2, 2012, 2016, 7 and 10 go in `~/tools/win/clsid/` with `t
 
 `__chash_id` holds `chash`'s identification table and returns one record for one string: name, hashcat mode, john format, what it is usable for as-is, and how hard cracking would be. One table walked in order, first match wins: prefixed formats first so they can never be shadowed, then structured ones, then bare hex last because it is ambiguous by nature. Add a format by adding a row, not by adding a branch.
 
+`__nxclur_names` pulls the usernames out of an nxc ldap enum for `nxclur`: strip ANSI, drop the `[*]`/`[+]`/`[-]` status lines and the `-Username-` header, cut the `LDAP ip port host` prefix off the front, take the first field. One parser behind all three calls, because the name leads the row in `--users` and `--active-users` and is the whole row in `--admin-count`. Do not call it directly.
+
 `__run` wraps a command with the logging banner. `__fzz_core` is the shared feroxbuster runner behind the five fuzz functions. Pass it a fifth argument and it becomes the rate limited one. `__look_table` draws the `look -h` table out of a `deep.nmap`. `__winpwn_get`, `__winpwn_ghurl` and `__winpwn_member` do the downloading and unpacking for `winpwn`. Do not call them directly.
 
 `__run` executes an argument list, so no pipes, redirects or `&&` inside it. Anything needing those has to go through `sh -c`. Use `bash -c "set -o pipefail; ..."` when there is a pipe, or you read back the status of whatever ran last instead of the tool you cared about.
@@ -252,6 +278,8 @@ Port 1 in `look` stage two only helps `-O` if it comes back closed. Nmap wants o
 If a target's 404 page returns 200, every content discovery function lights up with thousands of false positives. Check what a garbage URL returns before you trust any scan output, and filter on size instead of status code.
 
 `smbr`, `smbrd` and `snmpr` still cut their output with `head`. 60 lines of enum4linux-ng, 80 in `smbrd`, 100 of snmpwalk. You get no marker where it cut, so a transcript can look finished when it is not. They bin stderr too, so you never find out why something half failed.
+
+`spray` shows nothing on screen for a protocol that found no valid login, so a slow `rdp` or `vnc` leg looks hung when it is just grinding a host list. The plan it printed up front already named every command, and the full run, every failure included, is going to `spray-TARGET.log` regardless. `-v` to watch it live.
 
 Trust the exit code in the footer. Anything with a pipe runs under pipefail, otherwise you read `head`'s status back and a tool you never installed comes up green. `wketch` is the exception, the `stty sane` on the end always works so you always get 0 out of it. It is a listener, ignore it.
 
