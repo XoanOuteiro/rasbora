@@ -1,0 +1,240 @@
+# servrec.db — per-service enumeration command database for rasbora
+# Columns (TAB-separated):  port <TAB> service <TAB> tag <TAB> source <TAB> command
+# Vars: $RHOST target, $PORT the open port.  <user>/<pass>/<domain> = fill in.
+# Provenance: every row extracted verbatim from source, only placeholder
+#   normalization + output-file plumbing stripped. source = autorecon:<plugin>
+#   or hacktricks:<page>:<line>. Nothing here is hand-written or model-generated.
+#   AutoRecon: github.com/Tib3rius/AutoRecon (default-plugins)
+#   HackTricks: github.com/HackTricks-wiki/hacktricks (network-services-pentesting)
+# Generated 231 rows. Credential-bruteforce plugins excluded by design.
+0	apani1	nmap scripts	autorecon:nmap-cassandra.py	nmap -sV -p $PORT --script="banner,(cassandra* or ssl*) and not (brute or broadcast or dos or external or fuzzer)" $RHOST
+0	java-rmi	rmi scripts	autorecon:nmap-rmi.py	nmap -sV -p $PORT --script="banner,rmi-vuln-classloader,rmi-dumpregistry" $RHOST
+0	lookup-sid	brute SIDs	autorecon:lookup-sid.py	impacket-lookupsid '[username]:[password]@$RHOST'
+0	mdns	dns scripts	autorecon:nmap-multicast-dns.py	nmap -sV -p $PORT --script="banner,(dns* or ssl*) and not (brute or broadcast or dos or external or fuzzer)" $RHOST
+0	portscan-all-tcp-ports	full tcp scan	autorecon:portscan-all-tcp-ports.py	nmap -sV -sC --version-all -p- $RHOST
+0	portscan-all-tcp-ports	nmap scripts	autorecon:portscan-all-tcp-ports.py	nmap -sV -sC --version-all -p $RHOST
+0	portscan-guess-tcp-ports	full tcp scan	autorecon:portscan-guess-tcp-ports.py	nmap -A --osscan-guess --version-all -p- $RHOST
+0	portscan-guess-tcp-ports	nmap scripts	autorecon:portscan-guess-tcp-ports.py	nmap -A --osscan-guess --version-all -p $RHOST
+0	portscan-top-100-udp-ports	udp scan	autorecon:portscan-top-100-udp-ports.py	nmap -sU -A --top-ports 100 $RHOST
+0	portscan-top-100-udp-ports	udp scan	autorecon:portscan-top-100-udp-ports.py	nmap -sU -A --osscan-guess -p $RHOST
+0	portscan-top-tcp-ports	nmap scripts	autorecon:portscan-top-tcp-ports.py	nmap -sV -sC --version-all $RHOST
+0	sslscan	tls check	autorecon:sslscan.py	sslscan --show-certificate --no-colour $RHOST:$PORT
+21	ftp	ftp scripts	autorecon:nmap-ftp.py	nmap -sV -p $PORT --script="banner,(ftp* or ssl*) and not (brute or broadcast or dos or external or fuzzer)" $RHOST
+21	ftp	ftp login	hacktricks:pentesting-ftp/README.md:105	ftp $RHOST
+21	ftp	ftp scripts	hacktricks:pentesting-ftp/README.md:123	nmap --script ftp-* -p 21 $RHOST
+22	ssh	ssh scripts	autorecon:nmap-ssh.py	nmap -sV -p $PORT --script="banner,ssh2-enum-algos,ssh-hostkey,ssh-auth-methods" $RHOST
+22	ssh	nmap scripts	hacktricks:pentesting-ssh.md:93	nmap -p22 $RHOST -sC
+22	ssh	nmap scripts	hacktricks:pentesting-ssh.md:94	nmap -p22 $RHOST -sV
+22	ssh	ssh scripts	hacktricks:pentesting-ssh.md:95	nmap -p22 $RHOST --script ssh2-enum-algos
+22	ssh	ssh scripts	hacktricks:pentesting-ssh.md:96	nmap -p22 $RHOST --script ssh-hostkey --script-args ssh_hostkey=full
+22	ssh	ssh scripts	hacktricks:pentesting-ssh.md:97	nmap -p22 $RHOST --script ssh-auth-methods --script-args="ssh.user=root"
+23	telnet	telnet scripts	autorecon:nmap-telnet.py	nmap -sV -p $PORT --script="banner,telnet-encryption,telnet-ntlm-info" $RHOST
+23	telnet	telnet scripts	hacktricks:pentesting-telnet.md:27	nmap -n -sV -Pn --script "*telnet* and safe" -p 23 $RHOST
+23	telnet	telnet scripts	hacktricks:pentesting-telnet.md:44	nmap -p 23 --script telnet-encryption $RHOST
+23	telnet	telnet scripts	hacktricks:pentesting-telnet.md:47	nmap -p 23 --script telnet-ntlm-info $RHOST
+23	telnet	telnet scripts	hacktricks:pentesting-telnet.md:50	nmap -p 23 --script telnet-brute --script-args userdb=users.txt,passdb=pass.txt $RHOST
+23	telnet	hydra	hacktricks:pentesting-telnet.md:151	hydra -L users.txt -P rockyou.txt -t 4 -f telnet://$RHOST
+25	smtp	smtp scripts	autorecon:nmap-smtp.py	nmap -sV -p $PORT --script="banner,(smtp* or ssl*) and not (brute or broadcast or dos or external or fuzzer)" $RHOST
+25	smtp	smtp scripts	hacktricks:pentesting-smtp/README.md:69	nmap -p25 --script smtp-commands $RHOST
+25	smtp	smtp scripts	hacktricks:pentesting-smtp/README.md:70	nmap -p25 --script smtp-open-relay $RHOST -v
+53	dns	dns scripts	hacktricks:pentesting-dns.md:107	nmap -n --script "(default and *dns*) or fcrdns or dns-srv-enum or dns-random-txid or dns-random-srcport" $RHOST
+53	dns	dns query	hacktricks:pentesting-dns.md:175	dig google.com A @$RHOST
+53	dns	dns enum	hacktricks:pentesting-dns.md:353	dnsrecon -r 127.0.0.0/24 -n $RHOST -d {Domain_Name}
+53	dns	dns enum	hacktricks:pentesting-dns.md:354	dnsrecon -r 127.0.1.0/24 -n $RHOST -d {Domain_Name}
+53	dns	dns enum	hacktricks:pentesting-dns.md:355	dnsrecon -r {Network}{CIDR} -n $RHOST -d {Domain_Name}
+53	dns	zone transfer	hacktricks:pentesting-dns.md:356	dig axfr @$RHOST
+53	dns	zone transfer	hacktricks:pentesting-dns.md:357	dig axfr {Domain_Name} @$RHOST
+53	domain	dns query	autorecon:dns-reverse-lookup.py	dig -p $PORT -x $RHOST @$RHOST
+53	domain	zone transfer	autorecon:dns-zone-transfer.py	dig AXFR -p $PORT @$RHOST
+53	domain	zone transfer	autorecon:dns-zone-transfer.py	dig AXFR -p $PORT @$RHOST $RHOST
+53	domain	dns enum	autorecon:dnsrecon-subdomain-bruteforce.py	dnsrecon -n $RHOST -d -D /usr/share/seclists/Discovery/DNS/subdomains-top1million-110000.txt -t brt
+53	domain	dns enum	autorecon:dnsrecon.py	dnsrecon -n $RHOST -d <DOMAIN-NAME>
+53	domain	dns enum	autorecon:dnsrecon.py	dnsrecon -n $RHOST -d
+53	domain	dns scripts	autorecon:nmap-dns.py	nmap -sV -p $PORT --script="banner,(dns* or ssl*) and not (brute or broadcast or dos or external or fuzzer)" $RHOST
+69	tftp	ftp scripts	autorecon:nmap-tftp.py	nmap -sV -p $PORT --script="banner,tftp-enum" $RHOST
+79	finger	finger	autorecon:nmap-finger.py	nmap -sV -p $PORT --script="banner,finger" $RHOST
+79	finger	nmap scripts	hacktricks:pentesting-finger.md:85	nmap -sV -sC -p79 $RHOST
+79	finger	finger	hacktricks:pentesting-finger.md:86	nmap --script finger -p79 $RHOST
+80	http	security.txt	autorecon:curl-known-security.py	curl -sSikf http://$RHOST:$PORT/.well-known/security.txt
+80	http	robots.txt	autorecon:curl-robots.py	curl -sSikf http://$RHOST:$PORT/robots.txt
+80	http	headers	autorecon:curl.py	curl -sSik http://$RHOST:$PORT
+80	http	dir brute	autorecon:dirbuster.py	feroxbuster -u http://$RHOST:$PORT -t -w /usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt -x "" -v -k -e -r
+80	http	dir brute	autorecon:dirbuster.py	gobuster dir -u http://$RHOST:$PORT/ -t -w /usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt -e -k -x "" -r
+80	http	dir brute	autorecon:dirbuster.py	ffuf -u http://$RHOST:$PORT/FUZZ -t -w /usr/share/seclists/Discovery/Web-Content/directory-list-2.3-medium.txt -e "" -v -r -noninteractive
+80	http	dir brute	autorecon:dirbuster.py	dirb http://$RHOST:$PORT/ /usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt -l -X "," -f
+80	http	dir brute	autorecon:dirbuster.py	dirb http://$RHOST:$PORT/ -l -S -X "," -f
+80	http	web vuln scan	autorecon:nikto.py	nikto -ask=no -h http://$RHOST:$PORT
+80	http	dns query	autorecon:nikto.py	nikto -ask=no -Tuning=x4567890ac -nointeractive -host http://$RHOST:$PORT
+80	http	http scripts	autorecon:nmap-http.py	nmap -sV -p $PORT --script="banner,(http* or ssl*) and not (brute or broadcast or dos or external or http-slowloris* or fuzzer)" $RHOST
+80	http	web fingerprint	autorecon:whatweb.py	whatweb --color=never --no-errors -a 3 -v http://$RHOST:$PORT
+80	http	wordpress	autorecon:wpscan.py	wpscan --url http://$RHOST:$PORT/ --no-update -e vp,vt,tt,cb,dbe,u,m --plugins-detection aggressive --plugins-version-detection aggressive -f cli-no-color
+88	kerberos	nmap scripts	autorecon:nmap-kerberos.py	nmap -sV -p $PORT --script="banner,krb5-enum-users" --script-args krb5-enum-users.realm="",userdb="" $RHOST
+88	kerberos	nmap scripts	autorecon:nmap-kerberos.py	nmap -sV -p $PORT --script="banner,krb5-enum-users" $RHOST
+110	pop3	mail scripts	autorecon:nmap-pop3.py	nmap -sV -p $PORT --script="banner,(pop3* or ssl*) and not (brute or broadcast or dos or external or fuzzer)" $RHOST
+110	pop3	mail scripts	hacktricks:pentesting-pop.md:32	nmap --script "pop3-capabilities or pop3-ntlm-info" -sV -p <PORT> $RHOST
+111	rpcbind	rpc services	hacktricks:pentesting-rpcbind.md:33	rpcinfo -T udp -p $RHOST
+111	rpcbind	nfs exports	hacktricks:pentesting-rpcbind.md:34	showmount -e $RHOST
+111	rpcbind	rpc services	hacktricks:pentesting-rpcbind.md:66	rpcinfo -p $RHOST | egrep 'ypbind|ypserv|yppasswdd'
+119	nntp	nmap scripts	autorecon:nmap-nntp.py	nmap -sV -p $PORT --script="banner,nntp-ntlm-info" $RHOST
+123	ntp	nmap scripts	autorecon:nmap-ntp.py	nmap -sV -p $PORT --script="banner,(ntp* or ssl*) and not (brute or broadcast or dos or external or fuzzer)" $RHOST
+123	ntp	udp scan	hacktricks:pentesting-ntp.md:56	nmap -sU -sV -p 323 $RHOST
+123	ntp	udp scan	hacktricks:pentesting-ntp.md:69	nmap -sU -sV --script "ntp* and (discovery or vuln) and not (dos or brute)" -p 123 $RHOST
+123	ntp	udp scan	hacktricks:pentesting-ntp.md:72	nmap -sU -p123 --script ntp-monlist $RHOST
+123	ntp	nmap scripts	hacktricks:pentesting-ntp.md:129	nmap -sV -p 4460 --script ssl-enum-ciphers,ssl-cert $RHOST
+135	msrpc	impacket-getArch	autorecon:get-arch.py	impacket-getArch -target $RHOST
+135	msrpc	nmap scripts	autorecon:nmap-msrpc.py	nmap -sV -p $PORT --script="banner,msrpc-enum,rpc-grind,rpcinfo" $RHOST
+135	msrpc	rpc client	autorecon:rpcclient.py	rpcclient -p $PORT -U "" $RHOST
+135	msrpc	impacket-rpcdump	autorecon:rpcdump.py	impacket-rpcdump -port $PORT $RHOST
+139	ldap	samba/AD enum	autorecon:enum4linux.py	enum4linux -a -M -l -d $RHOST
+139	ldap	samba/AD enum	autorecon:enum4linux.py	enum4linux-ng -A -d -v $RHOST
+139	smb	list shares	autorecon:smbclient.py	smbclient -L //$RHOST -N -I $RHOST
+143	imap	mail scripts	autorecon:nmap-imap.py	nmap -sV -p $PORT --script="banner,(imap* or ssl*) and not (brute or broadcast or dos or external or fuzzer)" $RHOST
+161	snmp	snmp scripts	autorecon:nmap-snmp.py	nmap -sV -p $PORT --script="banner,(snmp* or ssl*) and not (brute or broadcast or dos or external or fuzzer)" $RHOST
+161	snmp	community brute	autorecon:onesixtyone.py	onesixtyone -c -dd $RHOST
+161	snmp	walk MIB	autorecon:snmpwalk.py	snmpwalk -c public -v 1 $RHOST
+161	snmp	system procs	autorecon:snmpwalk.py	snmpwalk -c public -v 1 $RHOST 1.3.6.1.2.1.25.1.6.0
+161	snmp	running procs	autorecon:snmpwalk.py	snmpwalk -c public -v 1 $RHOST 1.3.6.1.2.1.25.4.2.1.2
+161	snmp	process paths	autorecon:snmpwalk.py	snmpwalk -c public -v 1 $RHOST 1.3.6.1.2.1.25.4.2.1.4
+161	snmp	storage/sw	autorecon:snmpwalk.py	snmpwalk -c public -v 1 $RHOST 1.3.6.1.2.1.25.2.3.1.4
+161	snmp	user accounts	autorecon:snmpwalk.py	snmpwalk -c public -v 1 $RHOST 1.3.6.1.4.1.77.1.2.25
+161	snmp	tcp ports	autorecon:snmpwalk.py	snmpwalk -c public -v 1 $RHOST 1.3.6.1.2.1.6.13.1.3
+161	snmp	snmp scripts	hacktricks:pentesting-snmp/README.md:123	nmap --script "snmp* and not snmp-brute" $RHOST
+161	snmp	walk MIB	hacktricks:pentesting-snmp/README.md:131	snmpwalk -v X -c public $RHOST NET-SNMP-EXTEND-MIB::nsExtendOutputFull
+389	ldap	users	autorecon:ldap-search.py	ldapsearch -x -D "<username>" -w "<password>" -H ldap://$RHOST:$PORT -b "dc=example,dc=com" -s sub "(objectclass=*)"
+389	ldap	ldap scripts	autorecon:nmap-ldap.py	nmap -sV -p $PORT --script="banner,(ldap* or ssl*) and not (brute or broadcast or dos or external or fuzzer)" $RHOST
+389	ldap	ldap query	hacktricks:pentesting-ldap.md:98	ldapsearch -x -H ldap://$RHOST -D "<bind-dn>" -w '<password>' -b "<base-dn>"
+389	ldap	ldap scripts	hacktricks:pentesting-ldap.md:176	nmap -n -sV --script "ldap* and not brute" $RHOST
+389	ldap	ldap query	hacktricks:pentesting-ldap.md:248	ldapsearch -x -H ldap://$RHOST -D '' -w '' -b "DC=<1_SUBDOMAIN>,DC=<TLD>"
+389	ldap	users	hacktricks:pentesting-ldap.md:249	ldapsearch -x -H ldap://$RHOST -D '<DOMAIN>\<username>' -w '<password>' -b "DC=<1_SUBDOMAIN>,DC=<TLD>"
+389	ldap	users	hacktricks:pentesting-ldap.md:276	ldapsearch -x -H ldap://$RHOST -D '<DOMAIN>\<username>' -w '<password>' -b "CN=Users,DC=<1_SUBDOMAIN>,DC=<TLD>"
+389	ldap	computers	hacktricks:pentesting-ldap.md:283	ldapsearch -x -H ldap://$RHOST -D '<DOMAIN>\<username>' -w '<password>' -b "CN=Computers,DC=<1_SUBDOMAIN>,DC=<TLD>"
+389	ldap	users	hacktricks:pentesting-ldap.md:289	ldapsearch -x -H ldap://$RHOST -D '<DOMAIN>\<username>' -w '<password>' -b "CN=<MY NAME>,CN=Users,DC=<1_SUBDOMAIN>,DC=<TLD>"
+389	ldap	domain admins	hacktricks:pentesting-ldap.md:295	ldapsearch -x -H ldap://$RHOST -D '<DOMAIN>\<username>' -w '<password>' -b "CN=Domain Admins,CN=Users,DC=<1_SUBDOMAIN>,DC=<TLD>"
+389	ldap	users	hacktricks:pentesting-ldap.md:301	ldapsearch -x -H ldap://$RHOST -D '<DOMAIN>\<username>' -w '<password>' -b "CN=Domain Users,CN=Users,DC=<1_SUBDOMAIN>,DC=<TLD>"
+389	ldap	users	hacktricks:pentesting-ldap.md:307	ldapsearch -x -H ldap://$RHOST -D '<DOMAIN>\<username>' -w '<password>' -b "CN=Enterprise Admins,CN=Users,DC=<1_SUBDOMAIN>,DC=<TLD>"
+389	ldap	users	hacktricks:pentesting-ldap.md:313	ldapsearch -x -H ldap://$RHOST -D '<DOMAIN>\<username>' -w '<password>' -b "CN=Administrators,CN=Builtin,DC=<1_SUBDOMAIN>,DC=<TLD>"
+389	ldap	users	hacktricks:pentesting-ldap.md:319	ldapsearch -x -H ldap://$RHOST -D '<DOMAIN>\<username>' -w '<password>' -b "CN=Remote Desktop Users,CN=Builtin,DC=<1_SUBDOMAIN>,DC=<TLD>"
+445	smb	netbios	autorecon:nbtscan.py	nbtscan -rvh $RHOST
+445	smb	smb scripts	autorecon:nmap-smb.py	nmap -sV -p $PORT --script="banner,(nbstat or smb* or ssl*) and not (brute or broadcast or dos or external or fuzzer)" $RHOST
+445	smb	smb vuln	autorecon:smb-vuln.py	nmap -sV -p $PORT --script="smb-vuln-*" --script-args="unsafe=1" $RHOST
+445	smb	smb vuln	autorecon:smb-vuln.py	nmap -sV -p $PORT --script="smb-vuln-* and dos" --script-args="unsafe=1" $RHOST
+445	smb	shares	autorecon:smbmap.py	smbmap -H $RHOST -P $PORT
+445	smb	shares null	autorecon:smbmap.py	smbmap -u null -p "" -H $RHOST -P $PORT
+445	smb	shares recurse	autorecon:smbmap.py	smbmap -H $RHOST -P $PORT -r
+445	smb	shares recurse	autorecon:smbmap.py	smbmap -u null -p "" -H $RHOST -P $PORT -r
+445	smb	cmd exec	autorecon:smbmap.py	smbmap -H $RHOST -P $PORT -x "ipconfig /all"
+445	smb	cmd exec	autorecon:smbmap.py	smbmap -u null -p "" -H $RHOST -P $PORT -x "ipconfig /all"
+445	smb	udp scan	hacktricks:pentesting-smb/README.md:31	nmap -sU -Pn -p 443 $RHOST
+445	smb	smb scripts	hacktricks:pentesting-smb/README.md:109	nmap -Pn -p 445 --script smb-protocols,smb2-capabilities,smb2-security-mode,smb2-time $RHOST
+445	smb	samba/AD enum	hacktricks:pentesting-smb/README.md:145	enum4linux -a [-u "<username>" -p "<passwd>"] $RHOST
+445	smb	samba/AD enum	hacktricks:pentesting-smb/README.md:146	enum4linux-ng -A [-u "<username>" -p "<passwd>"] $RHOST
+445	smb	smb scripts	hacktricks:pentesting-smb/README.md:147	nmap --script "safe or smb-enum-*" -p 445 $RHOST
+445	smb	rpc client	hacktricks:pentesting-smb/README.md:150	rpcclient -U "" -N $RHOST
+445	smb	rpc client	hacktricks:pentesting-smb/README.md:152	rpcclient -U "username%passwd" $RHOST
+445	smb	users	hacktricks:pentesting-smb/README.md:170	crackmapexec smb $RHOST --users [-u <username> -p <password>]
+445	smb	groups	hacktricks:pentesting-smb/README.md:171	crackmapexec smb $RHOST --groups [-u <username> -p <password>]
+445	smb	logged-on	hacktricks:pentesting-smb/README.md:172	crackmapexec smb $RHOST --loggedon-users [-u <username> -p <password>]
+445	smb	users	hacktricks:pentesting-smb/README.md:174	ldapsearch -x -b "DC=DOMAIN_NAME,DC=LOCAL" -s sub "(&(objectclass=user))" -h $RHOST | grep -i samaccountname: | cut -f 2 -d " "
+445	smb	rpc client	hacktricks:pentesting-smb/README.md:176	rpcclient -U "" -N $RHOST
+445	smb	list shares	hacktricks:pentesting-smb/README.md:224	smbclient --no-pass -L //$RHOST
+445	smb	list shares	hacktricks:pentesting-smb/README.md:225	smbclient -U 'username[%passwd]' -L [--pw-nt-hash] //$RHOST
+445	smb	shares	hacktricks:pentesting-smb/README.md:227	smbmap -H $RHOST [-P <PORT>]
+445	smb	shares	hacktricks:pentesting-smb/README.md:228	smbmap -u "username" -p "password" -H $RHOST [-P <PORT>]
+445	smb	shares	hacktricks:pentesting-smb/README.md:229	smbmap -u "username" -p "<NT>:<LM>" -H $RHOST [-P <PORT>]
+445	smb	shares recurse	hacktricks:pentesting-smb/README.md:230	smbmap -R -u "username" -p "password" -H $RHOST [-P <PORT>]
+445	smb	shares	hacktricks:pentesting-smb/README.md:232	crackmapexec smb $RHOST -u '' -p '' --shares
+445	smb	shares	hacktricks:pentesting-smb/README.md:233	crackmapexec smb $RHOST -u 'username' -p 'password' --shares
+445	smb	shares	hacktricks:pentesting-smb/README.md:234	crackmapexec smb $RHOST -u 'username' -H '<HASH>' --shares
+445	smb	list shares	hacktricks:pentesting-smb/README.md:241	smbclient --no-pass //$RHOST/<Folder>
+445	smb	shares recurse	hacktricks:pentesting-smb/README.md:246	smbmap [-u "username" -p "password"] -R [Folder] -H $RHOST [-P <PORT>]
+445	smb	shares recurse	hacktricks:pentesting-smb/README.md:247	smbmap [-u "username" -p "password"] -r [Folder] -H $RHOST [-P <PORT>]
+445	smb	shares recurse	hacktricks:pentesting-smb/README.md:248	smbmap -u "username" -p "<NT>:<LM>" [-r/-R] [Folder] -H $RHOST [-P <PORT>]
+445	smb	list shares	hacktricks:pentesting-smb/README.md:271	smbclient -U '%' -N \\\\$RHOST\\<SHARE>
+445	smb	list shares	hacktricks:pentesting-smb/README.md:272	smbclient -U '<USER>' \\\\$RHOST\\<SHARE>
+445	smb	list shares	hacktricks:pentesting-smb/README.md:353	smbclient //$RHOST/<share>
+445	smb	list shares	hacktricks:pentesting-smb/README.md:536	smbclient -L //$RHOST/ -N
+445	smb	rpc client	hacktricks:pentesting-smb/README.md:537	rpcclient -N -U "" $RHOST -c 'enumprinters; netshareenumall'
+445	smb	list shares	hacktricks:pentesting-smb/README.md:556	smbclient //$RHOST/PRINTER -N
+445	smb	printer abuse	hacktricks:pentesting-smb/README.md:564	smbclient //$RHOST/PRINTER -N -c 'print "|sh"'
+445	smb	printer abuse	hacktricks:pentesting-smb/README.md:567	smbclient //$RHOST/PRINTER -N -c 'print "|bash"'
+445	smb	list shares	hacktricks:pentesting-smb/README.md:598	smbclient //$RHOST/transfer -U scott%PASSWORD
+445	smb	dump SAM	hacktricks:pentesting-smb/README.md:657	crackmapexec smb $RHOST -d <DOMAIN> -u Administrator -p 'password' --sam
+445	smb	dump LSA	hacktricks:pentesting-smb/README.md:658	crackmapexec smb $RHOST -d <DOMAIN> -u Administrator -p 'password' --lsa
+445	smb	sessions	hacktricks:pentesting-smb/README.md:659	crackmapexec smb $RHOST -d <DOMAIN> -u Administrator -p 'password' --sessions
+445	smb	logged-on	hacktricks:pentesting-smb/README.md:660	crackmapexec smb $RHOST -d <DOMAIN> -u Administrator -p 'password' --loggedon-users
+445	smb	disks	hacktricks:pentesting-smb/README.md:661	crackmapexec smb $RHOST -d <DOMAIN> -u Administrator -p 'password' --disks
+445	smb	users	hacktricks:pentesting-smb/README.md:662	crackmapexec smb $RHOST -d <DOMAIN> -u Administrator -p 'password' --users
+445	smb	groups	hacktricks:pentesting-smb/README.md:663	crackmapexec smb $RHOST -d <DOMAIN> -u Administrator -p 'password' --groups
+445	smb	local groups	hacktricks:pentesting-smb/README.md:664	crackmapexec smb $RHOST -d <DOMAIN> -u Administrator -p 'password' --local-groups
+445	smb	pass policy	hacktricks:pentesting-smb/README.md:665	crackmapexec smb $RHOST -d <DOMAIN> -u Administrator -p 'password' --pass-pol
+445	smb	RID brute	hacktricks:pentesting-smb/README.md:666	crackmapexec smb $RHOST -d <DOMAIN> -u Administrator -p 'password' --rid-brute
+445	smb	pass-the-hash	hacktricks:pentesting-smb/README.md:668	crackmapexec smb $RHOST -d <DOMAIN> -u Administrator -H <HASH>
+445	smb	smb scripts	hacktricks:pentesting-smb/README.md:719	nmap --script smb-brute -p 445 $RHOST
+445	smb	netbios	hacktricks:pentesting-smb/README.md:769	nbtscan $RHOST
+445	smb	shares	hacktricks:pentesting-smb/README.md:770	smbmap -H $RHOST
+445	smb	shares null	hacktricks:pentesting-smb/README.md:771	smbmap -H $RHOST -u null -p null
+445	smb	shares	hacktricks:pentesting-smb/README.md:772	smbmap -H $RHOST -u guest
+445	smb	list shares	hacktricks:pentesting-smb/README.md:773	smbclient -N -L //$RHOST
+445	smb	list shares	hacktricks:pentesting-smb/README.md:774	smbclient -N //$RHOST/ --option="client min protocol"=LANMAN1
+445	smb	rpc client	hacktricks:pentesting-smb/README.md:775	rpcclient $RHOST
+445	smb	rpc client	hacktricks:pentesting-smb/README.md:776	rpcclient -U "" $RHOST
+445	smb	cme smb	hacktricks:pentesting-smb/README.md:777	crackmapexec smb $RHOST
+445	smb	pass policy	hacktricks:pentesting-smb/README.md:778	crackmapexec smb $RHOST --pass-pol -u "" -p ""
+445	smb	pass policy	hacktricks:pentesting-smb/README.md:779	crackmapexec smb $RHOST --pass-pol -u "guest" -p ""
+445	smb	shares	hacktricks:pentesting-smb/README.md:786	smbmap -H $RHOST -u {Username} -p {Password}
+445	smb	list shares	hacktricks:pentesting-smb/README.md:787	smbclient "\\\\$RHOST\\" -U {Username} -W {Domain_Name} -l $RHOST
+445	smb	list shares	hacktricks:pentesting-smb/README.md:788	smbclient "\\\\$RHOST\\" -U {Username} -W {Domain_Name} -l $RHOST --pw-nt-hash `hash`
+445	smb	shares	hacktricks:pentesting-smb/README.md:789	crackmapexec smb $RHOST -u {Username} -p {Password} --shares
+631	ipp	nmap scripts	autorecon:nmap-cups.py	nmap -sV -p $PORT --script="banner,(cups* or ssl*) and not (brute or broadcast or dos or external or fuzzer)" $RHOST
+873	rsync	nmap scripts	autorecon:nmap-rsync.py	nmap -sV -p $PORT --script="banner,(rsync* or ssl*) and not (brute or broadcast or dos or external or fuzzer)" $RHOST
+873	rsync	rsync	autorecon:rsync-list-files.py	rsync -av --list-only rsync://$RHOST:$PORT
+1433	mssql	mssql shell	autorecon:nmap-mssql.py	sqsh -U <username> -P <password> -S $RHOST:$PORT
+1433	mssql	mssql scripts	autorecon:nmap-mssql.py	nmap -sV -p $PORT --script="banner,(ms-sql* or ssl*) and not (brute or broadcast or dos or external or fuzzer)" --script-args="mssql.instance-port=$PORT,mssql.username=sa,mssql.password=sa" $RHOST
+1433	mssql	RID brute	hacktricks:pentesting-mssql-microsoft-sql-server/README.md:83	nxc mssql $RHOST --local-auth -u <username> -p '<password>' --rid-brute 5000
+1433	mssql	mssql shell	hacktricks:pentesting-mssql-microsoft-sql-server/README.md:139	mssqlclient.py [-db volume] <DOMAIN>/<USERNAME>:<PASSWORD>@$RHOST
+1433	mssql	mssql shell	hacktricks:pentesting-mssql-microsoft-sql-server/README.md:141	mssqlclient.py [-db volume] -windows-auth <DOMAIN>/<USERNAME>:<PASSWORD>@$RHOST
+1433	mssql	mssql shell	hacktricks:pentesting-mssql-microsoft-sql-server/README.md:144	sqsh -S $RHOST -U <Username> -P <Password> -D <Database>
+1433	mssql	mssql shell	hacktricks:pentesting-mssql-microsoft-sql-server/README.md:146	sqsh -S $RHOST -U .\\<Username> -P <Password> -D <Database>
+1521	oracle	oracle scripts	autorecon:nmap-oracle.py	nmap -sV -p $PORT --script="banner,oracle-sid-brute" $RHOST
+1521	oracle	oracle scripts	autorecon:nmap-oracle.py	nmap -sV -p $PORT --script="banner,(oracle* or ssl*) and not (brute or broadcast or dos or external or fuzzer)" $RHOST
+1521	oracle	oracle	autorecon:oracle-odat.py	python odat.py tnscmd -s $RHOST -p $PORT --ping
+1521	oracle	oracle	autorecon:oracle-odat.py	python odat.py tnscmd -s $RHOST -p $PORT --version
+1521	oracle	oracle	autorecon:oracle-odat.py	python odat.py tnscmd -s $RHOST -p $PORT --status
+1521	oracle	oracle	autorecon:oracle-odat.py	python odat.py sidguesser -s $RHOST -p $PORT
+1521	oracle	oracle	autorecon:oracle-odat.py	python odat.py passwordguesser -s $RHOST -p $PORT -d <sid> --accounts-file accounts/accounts_multiple.txt
+1521	oracle	oracle	autorecon:oracle-odat.py	python odat.py tnspoison -s $RHOST -p $PORT -d <sid> --test-module
+1521	oracle	patator	autorecon:oracle-patator.py	patator oracle_login host=$RHOST port=$PORT user=COMBO00 password=COMBO01 0=/usr/share/seclists/Passwords/Default-Credentials/oracle-betterdefaultpasslist.txt -x ignore:code=ORA-01017 -x ignore:code=ORA-28000
+1521	oracle	oscanner	autorecon:oracle-scanner.py	oscanner -v -s $RHOST -P $PORT
+1521	oracle	oracle	autorecon:oracle-tnscmd.py	tnscmd10g ping -h $RHOST -p $PORT
+1521	oracle	oracle	autorecon:oracle-tnscmd.py	tnscmd10g version -h $RHOST -p $PORT
+2049	nfs	nmap scripts	autorecon:nmap-nfs.py	nmap -sV -p $PORT --script="banner,(rpcinfo or nfs*) and not (brute or broadcast or dos or external or fuzzer)" $RHOST
+2049	nfs	nfs exports	autorecon:showmount.py	showmount -e $RHOST
+3306	mysql	mssql shell	autorecon:nmap-mysql.py	sqsh -U <username> -P <password> -S $RHOST:$PORT
+3306	mysql	mysql scripts	autorecon:nmap-mysql.py	nmap -sV -p $PORT --script="banner,(mysql* or ssl*) and not (brute or broadcast or dos or external or fuzzer)" $RHOST
+3306	mysql	mysql scripts	hacktricks:pentesting-mysql.md:36	nmap -sV -p 3306 --script mysql-audit,mysql-databases,mysql-dump-hashes,mysql-empty-password,mysql-enum,mysql-info,mysql-query,mysql-users,mysql-variables,mysql-vuln-cve2012-2122 $RHOST
+3389	rdp	rdp scripts	autorecon:nmap-rdp.py	nmap -sV -p $PORT --script="banner,(rdp* or ssl*) and not (brute or broadcast or dos or external or fuzzer)" $RHOST
+3389	rdp	rdp scripts	hacktricks:pentesting-rdp.md:25	nmap --script "rdp-enum-encryption or rdp-vuln-ms12-020 or rdp-ntlm-info" -p 3389 -T4 $RHOST
+3389	rdp	rdp scripts	hacktricks:pentesting-rdp.md:36	nmap --script rdp-enum-encryption -p 3389 $RHOST
+3389	rdp	cme smb	hacktricks:pentesting-rdp.md:39	nxc rdp $RHOST -u <user> -p <password>
+3389	rdp	cme smb	hacktricks:pentesting-rdp.md:42	nxc rdp $RHOST --nla-screenshot
+3389	rdp	cme smb	hacktricks:pentesting-rdp.md:45	nxc rdp $RHOST -u <user> -p <password> --screenshot
+3632	distccd	nmap scripts	autorecon:nmap-distccd.py	nmap -sV -p $PORT --script="banner,distcc-cve2004-2687" --script-args="distcc-cve2004-2687.cmd=id" $RHOST
+5060	asterisk	nmap scripts	autorecon:nmap-sip.py	nmap -sV -p $PORT --script="banner,sip-enum-users,sip-methods" $RHOST
+5060	asterisk	sip enum	autorecon:sipvicious.py	svwar -D -m INVITE -p $PORT $RHOST
+5432	postgresql	psql shell	hacktricks:pentesting-postgresql.md:20	psql -h $RHOST -U <username> -d <database>
+5432	postgresql	psql shell	hacktricks:pentesting-postgresql.md:21	psql -h $RHOST -p <port> -U <username> -W -d <database>
+5900	vnc	vnc scripts	autorecon:nmap-vnc.py	nmap -sV -p $PORT --script="banner,(vnc* or realvnc* or ssl*) and not (brute or broadcast or dos or external or fuzzer)" --script-args="unsafe=1" $RHOST
+5900	vnc	vnc scripts	hacktricks:pentesting-vnc.md:21	nmap -sV --script vnc-info,realvnc-auth-bypass,vnc-title -p <PORT> $RHOST
+5985	wsman	cme smb	autorecon:winrm-detection.py	crackmapexec winrm $RHOST -d '' -u '' -p ''
+5985	wsman	cme smb	autorecon:winrm-detection.py	crackmapexec winrm $RHOST -d '' -u '<username>' -p '<password>'
+5985	wsman	winrm shell	autorecon:winrm-detection.py	evil-winrm -u '<user>' -p '<password>' -i $RHOST
+5985	wsman	winrm shell	autorecon:winrm-detection.py	evil-winrm -u '<user>' -H '<hash>' -i $RHOST
+6379	redis	db scripts	autorecon:nmap-redis.py	nmap -sV -p $PORT --script="banner,redis-info" $RHOST
+6379	redis	redis	autorecon:redis-cli.py	redis-cli -p $PORT -h $RHOST INFO
+6379	redis	redis	autorecon:redis-cli.py	redis-cli -p $PORT -h $RHOST CONFIG GET '*'
+6379	redis	redis	autorecon:redis-cli.py	redis-cli -p $PORT -h $RHOST CLIENT LIST
+6667	irc	nmap scripts	autorecon:nmap-irc.py	nmap -sV --script irc-botnet-channels,irc-info,irc-unrealircd-backdoor -p $PORT $RHOST
+6667	irc	nmap scripts	hacktricks:pentesting-irc.md:75	nmap -sV --script irc-botnet-channels,irc-info,irc-unrealircd-backdoor -p 194,6660-7000 $RHOST
+8009	ajp13	nmap scripts	autorecon:nmap-ajp.py	nmap -sV -p $PORT --script="banner,(ajp-* or ssl*) and not (brute or broadcast or dos or external or fuzzer)" $RHOST
+20048	mountd	nmap scripts	autorecon:nmap-mountd.py	nmap -sV -p $PORT --script="banner,nfs* and not (brute or broadcast or dos or external or fuzzer)" $RHOST
+27017	mongod	db scripts	autorecon:nmap-mongodb.py	nmap -sV -p $PORT --script="banner,(mongodb* or ssl*) and not (brute or broadcast or dos or external or fuzzer)" $RHOST
