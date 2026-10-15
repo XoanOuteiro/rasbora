@@ -4,9 +4,9 @@
 #
 #   curl -fsSL https://raw.githubusercontent.com/XoanOuteiro/rasbora/main/install.sh | bash
 #
-# Copies every rasbora function into your fish functions directory, overwriting
-# anything already there under the same name. Safe to run as many times as you
-# like: it only touches files whose contents actually differ.
+# Copies every rasbora function into your fish functions directory, plus any
+# data files the functions read (servrec.db), overwriting anything already there
+# under the same name. Safe to run as many times as you like.
 #
 # Everything lives inside main() and main runs on the last line, so a download
 # that gets cut off halfway can never execute half an install.
@@ -42,7 +42,7 @@ fetch_repo() {
 
 main() {
     local dest src script_dir
-    local new=0 upd=0 total=0
+    local new=0 upd=0 total=0 data=0
 
     case "${1:-}" in
         -h|--help)
@@ -99,9 +99,24 @@ main() {
         cp "$f" "$target"
     done
 
+    # Data files the functions read. servrec reads servrec.db from the same
+    # directory it is autoloaded out of, so it has to land next to the .fish
+    # files, not just get skipped because it is not a function itself.
+    if compgen -G "$src/*.db" >/dev/null 2>&1; then
+        for f in "$src"/*.db; do
+            local base target
+            base="$(basename "$f")"
+            target="$dest/$base"
+            data=$((data + 1))
+            rm -f "$target"
+            cp "$f" "$target"
+        done
+    fi
+
     msg ""
     msg "[*] $total functions -> $dest"
     msg "    $new new, $upd overwritten"
+    [ "$data" -gt 0 ] && msg "    $data data file(s) (servrec.db)"
 
     command -v fish >/dev/null 2>&1 || warn "fish is not on your PATH, so none of this will load yet"
 
