@@ -96,7 +96,7 @@ Check your clock or these won't count for forensics stuff.
 
 `__run` prints the banner directly above the tool's own output, so when you copy the terminal you copy the command with it.
 
-Wrapped: `look`, `smell`, `scudp`, the five fuzz functions, `smbr`, `smbrd`, `snmpr`, `wpsr`, `nxclur`, `spray`, `ketch`, `rketch`, `wketch`, and the servers in `pwncat` and `winpwn`.
+Wrapped: `look`, `smell`, `scudp`, `snmpr`'s brute and walks, the five fuzz functions, `smbr`, `smbrd`, `snmpr`, `wpsr`, `nxclur`, `spray`, `ketch`, `rketch`, `wketch`, and the servers in `pwncat` and `winpwn`.
 
 Not wrapped: `sinst`, `extr`, `mkcd`, `tmpd`, `fns`, `decrypt`, `chash`, `creduse`, `servrec`, `ls` and friends, `peep`. None of them touch a target. Same for the downloads in `pwncat` and `winpwn`, that is my box not theirs.
 
@@ -136,13 +136,17 @@ Two things had to change for `sufzz` to mean what it says. Feroxbuster's `--rate
 |---|---|
 | `smbr IP` | Anonymous share list, then the first 60 lines of enum4linux-ng. Quick first look. |
 | `smbrd IP` | The full version. Shares, then rpcclient null session (`querydominfo`, `enumdomusers`, `enumdomgroups`, `enumprinters`), then enum4linux-ng. If null session works you have usernames, which is usually half the box. |
-| `snmpr IP` | onesixtyone against the default community string list, then snmpwalk. |
+| `snmpr IP [-c COMMUNITY]...` | Full SNMP walk from `.1`, not mib-2, so the enterprise tree is in: NET-SNMP `extend` scripts and their output, UCD exec, Windows LanManager users and shares. No `-c`: onesixtyone finds the communities first. One numeric walk file per community in `snmpr-IP/`, never truncated, plus a report that joins the tables worth reading (processes with their command lines, sockets, extend output, users, shares, installed software) and then lists every remaining string value once, so you read what the agent said instead of grepping for a word it never used. Rerun it and it diffs against the last walk. |
 | `wpsr URL` | wpscan with aggressive plugin detection and user enumeration. There is always a WordPress. |
 | `nxclur IP USER SECRET` | Credentialed nxc LDAP user recon, three views merged into one roster. Runs `--users`, `--active-users` and `--admin-count` and groups everyone: active admins first, then active, then disabled, each flagged `[admin]` / `[non-default]` with its description inline. SECRET is a password or an NTLM hash, auto-detected. Drops an active-only username list for the next step. |
 
 `nxclur`'s three nxc flags answer three different questions, and only together do they say where to spend time: `--users` is everyone, `--active-users` is who can still log in, `--admin-count` is who is privileged. The diff is the point. `--users` minus `--active-users` is the disabled set, noise in every roast and spray, so it sinks to the bottom dimmed. Anything in `--admin-count` that is not a built-in gets `[non-default]` and a call-out by name, because that is the `tom_admin` someone created and usually the way up.
 
 SECRET is read as a password unless it looks like an NTLM hash, 32 hex or `LM:NT`, in which case it goes in as `-H` and the same command does pass-the-hash against LDAP. It says which mode it chose and the banner shows the flag, so a wrong guess shows up on the first line rather than as a silent auth failure. The active names land in `ldap-names-IP.txt`, one per line, which is what `impacket-GetNPUsers` and `spray` want next, and it prints both of those lines ready to paste with the domain scraped out of nxc's own banner.
+
+A default `snmpwalk` starts at mib-2 and stops at the first enterprise OID, which is why a box can look fully enumerated and still be hiding `nsExtendOutputFull`. `snmpr` walks `.1`. v2c bulk first, v1 only if v2c is dead, because v1 silently drops Counter64 objects. `-Cc` so a misbehaving agent that hands back a non-increasing OID does not end the walk mid-tree, and a 15 minute `timeout` so `-Cc` cannot loop forever on a truly broken one. The walk file is the record: numeric OIDs, every object, nothing filtered. If it is not in that file the agent did not send it.
+
+The report is the presentation layer over that record and every walk line lands in exactly one section of it. Known tables become rows: `hrSWRun` name, path and parameters joined by PID with the ones carrying parameters repeated at the bottom, since `--password=` on a command line is the most common thing SNMP hands you; TCP connection table decoded into `LISTEN addr:port`, which shows the localhost-only services nmap cannot; `nsExtend` command, args and full output with the string index decoded back to the token name. Then `STRINGS`, every distinct string value not already shown, `Hex-STRING` decoded when it is text (Windows pads with nulls and `grep` will never match those), each once with its OID. Then `OTHER`, the counters and integers, counted by branch on screen and dumped in full in the report file. `-q` writes the report without printing it. Rerunning rotates the old walk to `.prev` and prints new, gone and changed objects, ignoring counters, gauges and uptime. Read access to `nsExtend*` is information; write access is code execution, and the next-steps line says how to test for it.
 
 ## Service recon menu
 
@@ -273,6 +277,8 @@ CLSID lists for 2008 R2, 2012, 2016, 7 and 10 go in `~/tools/win/clsid/` with `t
 
 `__cred_guide` is the per-service playbook behind `creduse` and `spray`'s next steps: given a protocol and a credential it prints the command templates, most useful first, in password or pass-the-hash form. One table of services, the way `__chash_id` is one table of hashes. Do not call it directly.
 
+`__snmpr_report` renders one `snmpr` walk file: parse, join the known tables, decode hex, list the leftover strings, diff against the previous walk. Python inside a fish function because the joins are a page of code. Do not call it directly.
+
 `__run` wraps a command with the logging banner. `__fzz_core` is the shared feroxbuster runner behind the five fuzz functions. Pass it a fifth argument and it becomes the rate limited one. `__look_table` draws the `look -h` table out of a `deep.nmap`. `__winpwn_get`, `__winpwn_ghurl` and `__winpwn_member` do the downloading and unpacking for `winpwn`. Do not call them directly.
 
 `__run` executes an argument list, so no pipes, redirects or `&&` inside it. Anything needing those has to go through `sh -c`. Use `bash -c "set -o pipefail; ..."` when there is a pipe, or you read back the status of whatever ran last instead of the tool you cared about.
@@ -299,7 +305,7 @@ Port 1 in `look` stage two only helps `-O` if it comes back closed. Nmap wants o
 
 If a target's 404 page returns 200, every content discovery function lights up with thousands of false positives. Check what a garbage URL returns before you trust any scan output, and filter on size instead of status code.
 
-`smbr`, `smbrd` and `snmpr` still cut their output with `head`. 60 lines of enum4linux-ng, 80 in `smbrd`, 100 of snmpwalk. You get no marker where it cut, so a transcript can look finished when it is not. They bin stderr too, so you never find out why something half failed.
+`smbr` and `smbrd` still cut their output with `head`. 60 lines of enum4linux-ng, 80 in `smbrd`. You get no marker where it cut, so a transcript can look finished when it is not. They bin stderr too, so you never find out why something half failed.
 
 `spray` shows nothing on screen for a protocol that found no valid login, so a slow `rdp` or `vnc` leg looks hung when it is just grinding a host list. The plan it printed up front already named every command, and the full run, every failure included, is going to `spray-TARGET.log` regardless. `-v` to watch it live.
 
