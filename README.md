@@ -239,7 +239,7 @@ Nobody wants to type those into a target shell, so there is a short name for eac
 
 | | |
 |---|---|
-| `winpwn` | Stage everything, print the tables and a certutil line per tool, then serve. |
+| `winpwn` | Stage everything, print the tables and a certutil line per tool, then serve. Also writes and serves `post.ps1`, the post-foothold enumeration script, and prints how to run it on the target. |
 | `winpwn --port 8080` | Same somewhere else. |
 | `winpwn --cmd jp64` | Every way to pull one tool down. certutil, WebClient, iwr, curl, bitsadmin, .NET reflection where it applies. Prints and quits, no server. |
 
@@ -276,6 +276,8 @@ CLSID lists for 2008 R2, 2012, 2016, 7 and 10 go in `~/tools/win/clsid/` with `t
 `__nxclur_names` pulls the usernames out of an nxc ldap enum for `nxclur`: strip ANSI, drop the `[*]`/`[+]`/`[-]` status lines and the `-Username-` header, cut the `LDAP ip port host` prefix off the front, take the first field. One parser behind all three calls, because the name leads the row in `--users` and `--active-users` and is the whole row in `--admin-count`. Do not call it directly.
 
 `__cred_guide` is the per-service playbook behind `creduse` and `spray`'s next steps: given a protocol and a credential it prints the command templates, most useful first, in password or pass-the-hash form. One table of services, the way `__chash_id` is one table of hashes. Do not call it directly.
+
+`__winpwn_post` writes `post.ps1`, the post-foothold Windows enumeration script `winpwn` stages. It lives inside a fish single-quoted string so `install.sh` needs no new file type; the price is that the PowerShell uses no single quotes and no doubled backslashes (regex backslashes are `\u005c`). Read-only on the target. Each finding prints a `>>` line with what it means and which alias to pull next: SeImpersonate names the potato for that build, `DefaultUserName` without `DefaultPassword` names the LSA secret and the two hives that hold it, `windows.old` names the secretsdump line and that the hashes want local auth, an unquoted service path lists the drop points with the ACL on each. Profiles are listed with hidden entries, `ConsoleHost_history.txt` is printed per user, services and scheduled tasks come with `icacls` on their binaries. Does not grep for the word password anywhere. `winpwn` prints the three ways to run it, all redirecting to `post.txt`, which is the evidence file for the report.
 
 `__snmpr_report` renders one `snmpr` walk file: parse, join the known tables, decode hex, list the leftover strings, diff against the previous walk. Python inside a fish function because the joins are a page of code. Do not call it directly.
 
