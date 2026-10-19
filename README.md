@@ -96,7 +96,7 @@ Check your clock or these won't count for forensics stuff.
 
 `__run` prints the banner directly above the tool's own output, so when you copy the terminal you copy the command with it.
 
-Wrapped: `look`, `smell`, `scudp`, `snmpr`'s brute and walks, `roast`'s probe and impacket calls, the five fuzz functions, `smbr`, `smbrd`, `snmpr`, `wpsr`, `nxclur`, `spray`, `ketch`, `rketch`, `wketch`, and the servers in `pwncat` and `winpwn`.
+Wrapped: `look`, `smell`, `scudp`, `snmpr`'s brute and walks, `roast`'s probe and impacket calls, `nacheck`'s kerbrute, the five fuzz functions, `smbr`, `smbrd`, `snmpr`, `wpsr`, `nxclur`, `spray`, `ketch`, `rketch`, `wketch`, and the servers in `pwncat` and `winpwn`.
 
 Not wrapped: `sinst`, `extr`, `mkcd`, `tmpd`, `fns`, `decrypt`, `chash`, `creduse`, `servrec`, `ls` and friends, `peep`. None of them touch a target. Same for the downloads in `pwncat` and `winpwn`, that is my box not theirs.
 
@@ -136,6 +136,7 @@ Two things had to change for `sufzz` to mean what it says. Feroxbuster's `--rate
 |---|---|
 | `smbr IP` | Anonymous share list, then the first 60 lines of enum4linux-ng. Quick first look. |
 | `smbrd IP` | The full version. Shares, then rpcclient null session (`querydominfo`, `enumdomusers`, `enumdomgroups`, `enumprinters`), then enum4linux-ng. If null session works you have usernames, which is usually half the box. |
+| `nacheck DC_IP DOMAIN LIST` | Which names in a list actually exist in the domain. kerbrute userenum underneath: one Kerberos request per name, no credential, no lockout. Normalises the list (strips `@domain`, lowercases, dedupes), writes the confirmed names to `nacheck-IP/valid.txt` for `roast -U` and `spray -U`, and keeps any AS-REP hash kerbrute dumped on the way. Zero hits means the naming convention is wrong, and it says so. kerbrute is not a Kali package; it tells you where to get it. |
 | `roast DC_IP DOMAIN [USER [SECRET]]` | AS-REP roast and Kerberoast in one run, with the DC clock measured first. Three credential shapes: nothing (AS-REP every name in `nxclur`'s list), a lone username (AS-REP that name), user plus password or NT hash (AS-REP the whole domain, Kerberoast every SPN). Hashes land in `roast-IP/`, each one goes through `chash` and gets a hashcat line pointing at the file. |
 | `snmpr IP [-c COMMUNITY]...` | Full SNMP walk from `.1`, not mib-2, so the enterprise tree is in: NET-SNMP `extend` scripts and their output, UCD exec, Windows LanManager users and shares. No `-c`: onesixtyone finds the communities first. One numeric walk file per community in `snmpr-IP/`, never truncated, plus a report that joins the tables worth reading (processes with their command lines, sockets, extend output, users, shares, installed software) and then lists every remaining string value once, so you read what the agent said instead of grepping for a word it never used. Rerun it and it diffs against the last walk. |
 | `wpsr URL` | wpscan with aggressive plugin detection and user enumeration. There is always a WordPress. |
