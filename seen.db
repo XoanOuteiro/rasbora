@@ -1,0 +1,20 @@
+# seen.db — services met on practice boxes, one line each, hand-written from the box retro.
+# Same columns as servrec.db:  port <TAB> service <TAB> tag <TAB> source <TAB> command
+# source = box:NAME. Rows say what the service was and what opened it, with the EDB id or CVE.
+# servrec reads this file after servrec.db and prints these rows with the box name.
+1978	mouse-server	seen	box:Hermes	Mobile Mouse / WiFi Mouse server 1.7.x on 1978 (banner "system windows 6.2"). EDB 50972 (WiFi Mouse 1.7.8.5 RCE). Pascha had it again on 9099 as "Server: Mobile Mouse Server". Public PoCs executed but shells never returned on Pascha; the msf module did. searchsploit mouse
+9099	mouse-server	seen	box:Pascha	Mobile Mouse Server on 9099, HTTP banner "Server: Mobile Mouse Server". Same product as Hermes 1978. EDB 50972 / 51078. searchsploit mobile mouse
+3000	aerospike	seen	box:Aero	Aerospike on 3000. CVE-2020-13151 lua UDF RCE via asinfo; the first PoC said "patched" for build 5.1.0.1 and was wrong, the poc.lua one worked. Privesc there was a root cron calling asadm: pspy first. searchsploit aerospike
+8021	freeswitch	seen	box:Gust	FreeSWITCH event socket on 8021, mod_sofia 1.10.1, default password ClueCon. EDB 47799 (event socket RCE). searchsploit freeswitch
+9998	smartermail	seen	box:Algernon	SmarterMail web on 9998, build in page source as stProductBuild. Build 6919: EDB 49216 RCE on 17001, shell as SYSTEM directly. The published exploit carries zero-width unicode: perl -CSD -i -pe 's/[\x{200B}-\x{200D}\x{FEFF}]//g' exploit.py
+17001	smartermail	seen	box:Algernon	SmarterMail .NET remoting on 17001, the port EDB 49216 talks to. Version comes from the web UI on 9998, not from this port
+8081	exhibitor	seen	box:Pelican	Exhibitor for ZooKeeper 1.x on 8081: config editor runs java.env as the service user. EDB 48654. nmap under-reported this port on bad wifi, re-sweep when the list looks thin
+8082	h2	seen	box:Jacko	H2 database console on 8082, sa with empty password. EDB 49384 JNIScriptEngine_eval RCE. Path backslashes get eaten: use forward slashes in the certutil line, and -e cmd.exe not sh. Shell came with an empty PATH: set PATH=C:\Windows\System32;C:\Windows
+8000	gerapy	seen	box:Levram	Gerapy 0.9.7 on 8000, admin:admin. CVE-2021-43857 RCE needs an existing project or it dies with IndexError: create one in the UI first. searchsploit gerapy
+20000	usermin	seen	box:Charlie	Usermin 1.820 on 20000, login with a user's own password (there the username as password). Authenticated RCE, EDB 50234 (webmin/usermin). Check every file the box offers for author names first
+8083	vesta	seen	box:Frankfurt	Vesta Control Panel on 8083. Authenticated RCE as root once you have a panel login; the credential there came from SNMP nsExtendOutput (snmpr). searchsploit vesta
+4505	salt	seen	box:Twiggy	SaltStack ZeroMQ on 4505/4506 with salt-api on 8000; the tell is the HTTP header X-Upstream: salt-api/3000-1. CVE-2020-11651 unauthenticated root. EDB 48421. read every header
+4506	salt	seen	box:Twiggy	SaltStack ZeroMQ return port. See 4505
+33333	backend-api	seen	box:Nickel	Hidden HTTP backend the 8089 frontend calls on 169.254.x:33333. POST with Content-Length: 0 to the listed endpoints; list-running-procs leaked a username and base64 password. Localhost-only ports: post.ps1 SOCKETS section
+2222	ssh-alt	seen	box:Craft	Nothing on 2222 there; the note is the foothold: upload.php wanted an ODT, a LibreOffice Basic macro bound to the Open Document event of the right module gave code execution
+25	sendmail	seen	box:ClamAV	Sendmail 8.13.4 with clamav-milter on 3310: EDB 4761 appends to inetd.conf and restarts it, root bind shell on 31337. searchsploit works offline when exploit-db.com is down

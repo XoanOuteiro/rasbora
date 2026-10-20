@@ -1,6 +1,10 @@
 function servrec --description 'per-service enum menu for a port/service (rasbora)'
     set -l db (dirname (status filename))/servrec.db
     test -f ~/.rasbora/servrec.db; and set db ~/.rasbora/servrec.db
+    # seen.db: hand-written one-liners for services met on practice boxes, same columns
+    set -l seen (dirname (status filename))/seen.db
+    test -f ~/.rasbora/seen.db; and set seen ~/.rasbora/seen.db
+    test -f $seen; and set -a db $seen
     set -l verbose 0; set -l q ''
     for a in $argv
         switch $a
@@ -18,7 +22,11 @@ function servrec --description 'per-service enum menu for a port/service (rasbor
         set -q PORT; and set port $PORT
         set cmd (string replace -a '$RHOST' -- "$RHOST" $cmd)
         set cmd (string replace -a '$PORT' -- "$port" $cmd)
-        set_color cyan; printf '%-16s' $tag
+        if test "$tag" = seen
+            set_color yellow; printf '%-16s' (string replace 'box:' '' -- $src)
+        else
+            set_color cyan; printf '%-16s' $tag
+        end
         set_color normal; printf ' %s\n' $cmd
         test $verbose -eq 1; and begin; set_color brblack; printf '%18s%s\n' '' $src; set_color normal; end
     end
