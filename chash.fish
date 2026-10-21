@@ -165,6 +165,15 @@ function chash --description "identify a hash, say whether it is worth attacking
         return 1
     end
 
+    # a single bare string that is layered base64/hex of plain text is not a
+    # hash at all: decode it and say so, before trying to identify it (Snookums)
+    if test $from_file -eq 0; and test (count $lines) -eq 1
+        if __decode $lines[1]
+            # still fall through to identification: if it also looks like a known
+            # hash the user can judge, but the decode is the likely answer
+        end
+    end
+
     # pwdump lines carry two hashes. Report the NT field, and the LM field only
     # when it is not the empty placeholder.
     set -l subjects

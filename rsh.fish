@@ -50,6 +50,7 @@ function rsh --description "reverse shell pre-flight: the payload that works, th
     end
     echo
     echo "  $D listener, start it first:$N  rketch $port"
-    echo "  $D nothing comes back? the port, before the payload: try 80 then 53 (rsh $os -p 80).$N"
+    echo "  $D nothing comes back? the port, before the payload: try 80, then 53, then a port the box itself serves (21, 3306).$N"
+    echo "  $D   a PG box with an egress firewall only lets back the ports it already listens on (Snookums: only 21 returned).$N"
     echo "  $D execution confirmed but silent (ping to kali shows in tcpdump -i tun0 icmp)? it is egress filtering, not you.$N"
 end

